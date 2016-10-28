@@ -7,7 +7,6 @@ import data_helpers
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from pprint import pprint
 from cnnlstm import cnnlstm_class
 
 def get_trained_params(trained_results_dir):
@@ -23,19 +22,23 @@ def get_trained_params(trained_results_dir):
 
 def get_test_data(test_file, labels):
 	df = pd.read_csv(test_file, sep='|')
-	selected = ['PROPOSED_CATEGORY', 'DESCRIPTION_UNMASKED']
-	non_selected = list(set(df.columns) - set(selected))
+	select = ['DESCRIPTION_UNMASKED']
 
-	df = df.drop(non_selected, axis=1)
-	df = df.dropna(axis=0, how='any', subset=selected)
+	df = df.dropna(axis=0, how='any', subset=select)
+	test_examples = df[select[0]].apply(lambda x: data_helpers.clean_str(x).split(' ')).tolist()
 
 	num_labels = len(labels)
 	one_hot = np.zeros((num_labels, num_labels), int)
 	np.fill_diagonal(one_hot, 1)
 	label_dict = dict(zip(labels, one_hot))
 
-	y_ = df[selected[0]].apply(lambda x: label_dict[x]).tolist()
-	test_examples = df[selected[1]].apply(lambda x: data_helpers.clean_str(x).split(' ')).tolist()
+	y_ = None
+	if 'PROPOSED_CATEGORY' in df.columns:
+		select.append('PROPOSED_CATEGORY')
+		y_ = df[select[1]].apply(lambda x: label_dict[x]).tolist()
+
+	not_select = list(set(df.columns) - set(select))
+	df = df.drop(not_select, axis=1)
 
 	return test_examples, y_, df
 
@@ -56,19 +59,15 @@ x_, y_, df = get_test_data('./train_result/df_test.csv', labels)
 x_ = data_helpers.pad_sentences(x_, params=params)
 x_ = convert_word_to_id(x_, word_index)
 
-x_ = np.asarray(x_)
-y_ = np.asarray(y_)
+x_test, y_test = np.asarray(x_), None
+if y_ is not None:
+	y_test = np.asarray(y_)
 
-x_test = x_
-y_test = y_
-
-predicted_results_dir = './predict_result/'
-if os.path.exists(predicted_results_dir):
-	shutil.rmtree(predicted_results_dir)
+predict_result_dir = './predict_result/'
+if os.path.exists(predict_result_dir):
+	shutil.rmtree(predict_result_dir)
 	print('The old predict_result directory has been deleted')
-os.makedirs(predicted_results_dir)
-
-df.to_csv('./predict_result/df_test_2.csv', index=False, header=True)
+os.makedirs(predict_result_dir)
 
 with tf.Graph().as_default():
 	session_conf = tf.ConfigProto(
@@ -92,17 +91,16 @@ with tf.Graph().as_default():
 		def real_len(xb):
 			return [np.ceil(np.argmin(i + [0])*1.0/params['max_pool_size']) for i in xb]
 
-		def predict_step(x_batch, y_batch):
+		def predict_step(x_batch):
 			feed_dict = {
 				lstm.input_x: x_batch,
-				lstm.input_y: y_batch,
 				lstm.dropout_keep_prob: 1.0,
 				lstm.batch_size: len(x_batch),
 				lstm.pad: np.zeros([len(x_batch), 1, params['embedding_dim'], 1]),
 				lstm.real_len: real_len(x_batch),
 			}
-			nb_correct, predictions = sess.run([lstm.nb_correct, lstm.predictions], feed_dict)
-			return nb_correct, predictions
+			predictions = sess.run([lstm.predictions], feed_dict)
+			return predictions
 
 		checkpoint_file = params['checkpoint_path']
 		saver = tf.train.Saver(tf.all_variables())
@@ -110,20 +108,29 @@ with tf.Graph().as_default():
 		saver.restore(sess, checkpoint_file)
 		print('{} has been loaded'.format(checkpoint_file))
 
-		batches = data_helpers.batch_iter_test(list(zip(x_test, y_test)), params['batch_size'], 1)
+		batches = data_helpers.batch_iter_test(list(x_test), params['batch_size'], 1)
 
-		total_correct, predict_labels = 0, []
-		for batch in batches:
-			x_batch, y_batch = zip(*batch)
-			print('x_batch: {}, y_batch: {}'.format(len(x_batch), len(y_batch)))
-			nb_correct, predictions = predict_step(x_batch, y_batch)
-			total_correct += nb_correct
+		all_predictions = []
+		predict_labels = []
+		for x_batch in batches:
+			predictions = predict_step(x_batch)[0]
 			print(predictions)
-			print(nb_correct)
 			for item in predictions:
 				predict_labels.append(labels[item])
+				all_predictions.append(item)
 
-		df['Predicted'] = predict_labels
-		cols = df.columns
-		df.to_csv('./predict_result/final_2.csv', index=False, columns=sorted(cols, reverse=True))
-		print('The number of total correct on test set is {}'.format(total_correct))
+		df['PREDICTED'] = predict_labels
+		columns = sorted(df.columns, reverse=True)
+		df.to_csv(predict_result_dir + 'prediction.csv', index=False, columns=columns, sep='|')
+
+		if y_test is not None:
+			y_test = np.array(np.argmax(y_test, axis=1))
+			correct_predictions = float(sum(np.array(all_predictions) == y_test))
+			print('The number of test examples is: {}'.format(len(y_test)))
+			print('The number of correct predictions is: {}'.format(correct_predictions))
+			print('{}% of the predictions are correct'.format(float(correct_predictions) * 100 / len(y_test)))
+
+			df_correct = df[df['PREDICTED'] == df['PROPOSED_CATEGORY']]
+			df_non_correct = df_non_correct = df[df['PREDICTED'] != df['PROPOSED_CATEGORY']]
+			df_correct.to_csv(predict_result_dir + 'correct.csv', index=False, columns=columns, sep='|')
+			df_non_correct.to_csv(predict_result_dir + 'non_correct.csv', index=False, columns=columns, sep='|')
