@@ -41,9 +41,10 @@ def add_unknown_words(word_vecs, vocab, min_df=0, k=300):
 			word_vecs[word] = np.random.uniform(-0.25,0.25,k)
 
 def pad_sentences(sentences, padding_word="<PAD/>", params=None):
-	if params is None:
+	"""Padding setences during training or prediction"""
+	if params is None: # Train
 		sequence_length = max(len(x) for x in sentences)
-	else:
+	else: # Prediction
 		print('This is prediction, reading the trained sequence length')
 		sequence_length = params['sequence_length']
 
@@ -52,8 +53,14 @@ def pad_sentences(sentences, padding_word="<PAD/>", params=None):
 	for i in range(len(sentences)):
 		sentence = sentences[i]
 		num_padding = sequence_length - len(sentence)
-		new_sentence = sentence + [padding_word] * num_padding
-		padded_sentences.append(new_sentence)
+
+		if num_padding < 0: # Prediction: cut off the sentence if it is longer than the sequence length
+			print('This sentence has to be cut off because it is longer than trained sequence length')
+			padded_sentence = sentence[0:sequence_length]
+		else:
+			padded_sentence = sentence + [padding_word] * num_padding
+
+		padded_sentences.append(padded_sentence)
 	return padded_sentences
 
 def build_vocab(sentences):
