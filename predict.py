@@ -137,6 +137,6 @@ def predict(test_file, trained_result_dir):
 
 if __name__ == '__main__':
 	test_file = './3000.csv'
-	# test_file = './130000.csv' # max_len is larger than trained sequence length
+	test_file = './130000.csv' # max_len is larger than trained sequence length
 	trained_result_dir = './train_result/'
 	predict(test_file, trained_result_dir)

@@ -1,7 +1,6 @@
 {
     "allow_soft_placement": true,
     "batch_size": 77,
-    "checkpoint_path": "/home/ubuntu/own/cnn_lstm/cnnlstm_checkpoints/model-2100",
     "dropout_keep_prob": 0.5,
     "embedding_dim": 300,
     "evaluate_every": 100,
@@ -12,7 +11,6 @@
     "lstm_type": "gru",
     "max_pool_size": 4,
     "non_static": false,
-    "num_epochs": 1,
-    "num_filters": 128,
-    "sequence_length": 43
+    "num_epochs": 3,
+    "num_filters": 128
 }
