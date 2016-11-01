@@ -7,9 +7,9 @@ import data_helpers
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from cnnlstm import cnnlstm_class
+from text_cnn_lstm import TextCNNLSTM
 
-def get_trained_params(trained_dir):
+def load_trained_params(trained_dir):
 	params = json.loads(open(trained_dir + 'trained_parameters.json').read())
 	word_index = json.loads(open(trained_dir + 'words_index.json').read())
 	labels = json.loads(open(trained_dir + 'labels.json').read())
@@ -20,7 +20,7 @@ def get_trained_params(trained_dir):
 
 	return params, word_index, labels, embedding_mat
 
-def get_test_data(test_file, labels):
+def load_test_data(test_file, labels):
 	df = pd.read_csv(test_file, sep='|')
 	select = ['DESCRIPTION_UNMASKED']
 
@@ -42,7 +42,7 @@ def get_test_data(test_file, labels):
 
 	return test_examples, y_, df
 
-def convert_word_to_id(examples, word_index):
+def map_word_to_index(examples, word_index):
 	x_ = []
 	for example in examples:
 		temp = []
@@ -55,10 +55,10 @@ def convert_word_to_id(examples, word_index):
 	return x_
 
 def predict(test_file, trained_dir):
-	params, word_index, labels, embedding_mat = get_trained_params(trained_dir)
-	x_, y_, df = get_test_data(test_file, labels)
+	params, word_index, labels, embedding_mat = load_trained_params(trained_dir)
+	x_, y_, df = load_test_data(test_file, labels)
 	x_ = data_helpers.pad_sentences(x_, params=params)
-	x_ = convert_word_to_id(x_, word_index)
+	x_ = map_word_to_index(x_, word_index)
 
 	x_test, y_test = np.asarray(x_), None
 	if y_ is not None:
@@ -76,10 +76,9 @@ def predict(test_file, trained_dir):
 			log_device_placement = params['log_device_placement'])
 		sess = tf.Session(config=session_conf)
 		with sess.as_default():
-			lstm = cnnlstm_class(
+			lstm = TextCNNLSTM(
 				embedding_mat = embedding_mat,
 				non_static = params['non_static'],
-				lstm_type = params['lstm_type'],
 				hidden_unit = params['hidden_unit'],
 				sequence_length = len(x_test[0]),
 				max_pool_size = params['max_pool_size'],
@@ -138,6 +137,6 @@ def predict(test_file, trained_dir):
 if __name__ == '__main__':
 	test_file = './data/bank_debit/3000.csv'
 	# test_file = './data/bank_debit/130000.csv'
-	# test_file = './train_result/df_test.csv'
+	test_file = './trained_results/data_test.csv'
 	trained_dir = './trained_results/'
 	predict(test_file, trained_dir)
