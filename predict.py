@@ -9,12 +9,12 @@ import pandas as pd
 import tensorflow as tf
 from cnnlstm import cnnlstm_class
 
-def get_trained_params(trained_result_dir):
-	params = json.loads(open(trained_result_dir + 'parameters.json').read())
-	word_index = json.loads(open(trained_result_dir + 'word_index.json').read())
-	labels = json.loads(open(trained_result_dir + 'labels.json').read())
+def get_trained_params(trained_dir):
+	params = json.loads(open(trained_dir + 'trained_parameters.json').read())
+	word_index = json.loads(open(trained_dir + 'words_index.json').read())
+	labels = json.loads(open(trained_dir + 'labels.json').read())
 
-	with open(trained_result_dir + 'embedding.pickle', 'rb') as input_file:
+	with open(trained_dir + 'embeddings.pickle', 'rb') as input_file:
 		fetched_embedding = pickle.load(input_file)
 	embedding_mat = np.array(fetched_embedding, dtype = np.float32)
 
@@ -54,8 +54,8 @@ def convert_word_to_id(examples, word_index):
 		x_.append(temp)
 	return x_
 
-def predict(test_file, trained_result_dir):
-	params, word_index, labels, embedding_mat = get_trained_params(trained_result_dir)
+def predict(test_file, trained_dir):
+	params, word_index, labels, embedding_mat = get_trained_params(trained_dir)
 	x_, y_, df = get_test_data(test_file, labels)
 	x_ = data_helpers.pad_sentences(x_, params=params)
 	x_ = convert_word_to_id(x_, word_index)
@@ -64,11 +64,11 @@ def predict(test_file, trained_result_dir):
 	if y_ is not None:
 		y_test = np.asarray(y_)
 
-	predict_result_dir = './predict_result/'
-	if os.path.exists(predict_result_dir):
-		shutil.rmtree(predict_result_dir)
-		print('The old predict_result directory has been deleted')
-	os.makedirs(predict_result_dir)
+	predicted_dir = './predicted_results/'
+	if os.path.exists(predicted_dir):
+		shutil.rmtree(predicted_dir)
+		print('The old predict_result directory {} has been deleted'.format(predicted_dir))
+	os.makedirs(predicted_dir)
 
 	with tf.Graph().as_default():
 		session_conf = tf.ConfigProto(
@@ -103,7 +103,7 @@ def predict(test_file, trained_result_dir):
 				predictions = sess.run([lstm.predictions], feed_dict)
 				return predictions
 
-			checkpoint_file = './train_result/best_model.ckpt'
+			checkpoint_file = trained_dir + 'best_model.ckpt'
 			saver = tf.train.Saver(tf.all_variables())
 			saver = tf.train.import_meta_graph("{}.meta".format(checkpoint_file[:-5]))
 			saver.restore(sess, checkpoint_file)
@@ -121,7 +121,7 @@ def predict(test_file, trained_result_dir):
 
 			df['PREDICTED'] = predict_labels
 			columns = sorted(df.columns, reverse=True)
-			df.to_csv(predict_result_dir + 'prediction.csv', index=False, columns=columns, sep='|')
+			df.to_csv(predicted_dir + 'predictions_all.csv', index=False, columns=columns, sep='|')
 
 			if y_test is not None:
 				y_test = np.array(np.argmax(y_test, axis=1))
@@ -132,12 +132,12 @@ def predict(test_file, trained_result_dir):
 
 				df_correct = df[df['PREDICTED'] == df['PROPOSED_CATEGORY']]
 				df_non_correct = df_non_correct = df[df['PREDICTED'] != df['PROPOSED_CATEGORY']]
-				df_correct.to_csv(predict_result_dir + 'correct.csv', index=False, columns=columns, sep='|')
-				df_non_correct.to_csv(predict_result_dir + 'non_correct.csv', index=False, columns=columns, sep='|')
+				df_correct.to_csv(predicted_dir + 'predictions_correct.csv', index=False, columns=columns, sep='|')
+				df_non_correct.to_csv(predicted_dir + 'predictions_non_correct.csv', index=False, columns=columns, sep='|')
 
 if __name__ == '__main__':
-	test_file = './3000.csv'
-	# test_file = './130000.csv' # max_len is larger than trained sequence length
+	test_file = './data/bank_debit/3000.csv'
+	# test_file = './data/bank_debit/130000.csv'
 	# test_file = './train_result/df_test.csv'
-	trained_result_dir = './train_result/'
-	predict(test_file, trained_result_dir)
+	trained_dir = './trained_results/'
+	predict(test_file, trained_dir)
