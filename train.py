@@ -9,7 +9,6 @@ import data_helpers
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from pprint import pprint
 from text_cnn_lstm import TextCNNLSTM
 
 logging.getLogger().setLevel(logging.INFO)
@@ -56,7 +55,7 @@ with tf.Graph().as_default():
 		log_device_placement=params['log_device_placement'])
 	sess = tf.Session(config=session_conf)
 	with sess.as_default():
-		lstm = TextCNNLSTM(
+		cnn_lstm = TextCNNLSTM(
 			embedding_mat = embedding_mat,
 			non_static = params['non_static'],
 			hidden_unit = params['hidden_unit'],
@@ -71,7 +70,7 @@ with tf.Graph().as_default():
 		# Define Training procedure
 		global_step = tf.Variable(0, name="global_step", trainable=False)
 		optimizer = tf.train.RMSPropOptimizer(1e-3, decay = 0.9)
-		grads_and_vars = optimizer.compute_gradients(lstm.loss)
+		grads_and_vars = optimizer.compute_gradients(cnn_lstm.loss)
 		train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
 
 		checkpoint_dir = os.path.abspath(os.path.join(os.path.curdir, "train_checkpoints"))
@@ -89,27 +88,27 @@ with tf.Graph().as_default():
 
 		def train_step(x_batch, y_batch):
 			feed_dict = {
-				lstm.input_x: x_batch,
-				lstm.input_y: y_batch,
-				lstm.dropout_keep_prob: params['dropout_keep_prob'],
-				lstm.batch_size: params['batch_size'],
-				lstm.pad: np.zeros([params['batch_size'], 1, params['embedding_dim'], 1]),
-				lstm.real_len: real_len(x_batch),
+				cnn_lstm.input_x: x_batch,
+				cnn_lstm.input_y: y_batch,
+				cnn_lstm.dropout_keep_prob: params['dropout_keep_prob'],
+				cnn_lstm.batch_size: params['batch_size'],
+				cnn_lstm.pad: np.zeros([params['batch_size'], 1, params['embedding_dim'], 1]),
+				cnn_lstm.real_len: real_len(x_batch),
 			}
-			_, step, loss, accuracy = sess.run([train_op, global_step, lstm.loss, lstm.accuracy], feed_dict)
+			_, step, loss, accuracy = sess.run([train_op, global_step, cnn_lstm.loss, cnn_lstm.accuracy], feed_dict)
 			# logging.info("TRAIN step {}, loss {:g}, acc {:g}".format(step, loss, accuracy))
 
 		def dev_step(x_batch, y_batch):
 			feed_dict = {
-				lstm.input_x: x_batch,
-				lstm.input_y: y_batch,
-				lstm.dropout_keep_prob: 1.0,
-				lstm.batch_size: len(x_batch),
-				lstm.pad: np.zeros([len(x_batch), 1, params['embedding_dim'], 1]),
-				lstm.real_len: real_len(x_batch),
+				cnn_lstm.input_x: x_batch,
+				cnn_lstm.input_y: y_batch,
+				cnn_lstm.dropout_keep_prob: 1.0,
+				cnn_lstm.batch_size: len(x_batch),
+				cnn_lstm.pad: np.zeros([len(x_batch), 1, params['embedding_dim'], 1]),
+				cnn_lstm.real_len: real_len(x_batch),
 			}
 			step, loss, accuracy, num_correct, predictions = sess.run(
-				[global_step, lstm.loss, lstm.accuracy, lstm.num_correct, lstm.predictions], feed_dict)
+				[global_step, cnn_lstm.loss, cnn_lstm.accuracy, cnn_lstm.num_correct, cnn_lstm.predictions], feed_dict)
 			# logging.info("VALID step {}, loss {:g}, acc {:g}".format(step, loss, accuracy))
 			return accuracy, loss, num_correct, predictions
 
