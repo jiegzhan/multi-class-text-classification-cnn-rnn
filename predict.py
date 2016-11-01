@@ -103,9 +103,9 @@ def predict(test_file, trained_result_dir):
 				predictions = sess.run([lstm.predictions], feed_dict)
 				return predictions
 
-			checkpoint_file = params['checkpoint_path']
+			checkpoint_file = './train_result/best_model.ckpt'
 			saver = tf.train.Saver(tf.all_variables())
-			saver = tf.train.import_meta_graph("{}.meta".format(checkpoint_file))
+			saver = tf.train.import_meta_graph("{}.meta".format(checkpoint_file[:-5]))
 			saver.restore(sess, checkpoint_file)
 			print('{} has been loaded'.format(checkpoint_file))
 
@@ -137,6 +137,7 @@ def predict(test_file, trained_result_dir):
 
 if __name__ == '__main__':
 	test_file = './3000.csv'
-	test_file = './130000.csv' # max_len is larger than trained sequence length
+	# test_file = './130000.csv' # max_len is larger than trained sequence length
+	# test_file = './train_result/df_test.csv'
 	trained_result_dir = './train_result/'
 	predict(test_file, trained_result_dir)

@@ -11,6 +11,7 @@ import pandas as pd
 import tensorflow as tf
 from pprint import pprint
 from cnnlstm import cnnlstm_class
+from tensorflow.contrib import learn
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -172,8 +173,11 @@ with open('./train_result/embedding.pickle', 'wb') as outfile:
 with open('./train_result/labels.json', 'w') as outfile:
 	json.dump(labels, outfile, indent=4, ensure_ascii=False)
 
+os.rename(path, './train_result/best_model.ckpt')
+os.rename(path + '.meta', './train_result/best_model.meta')
+# shutil.rmtree('./train_result/')
+
 params['sequence_length'] = x_.shape[1]
-params['checkpoint_path'] = path
 with open('./train_result/parameters.json', 'w') as outfile:
 	json.dump(params, outfile, indent=4, sort_keys=True, ensure_ascii=False)
 
