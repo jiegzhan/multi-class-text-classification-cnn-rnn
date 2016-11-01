@@ -11,14 +11,14 @@ from text_cnn_lstm import TextCNNLSTM
 
 def load_trained_params(trained_dir):
 	params = json.loads(open(trained_dir + 'trained_parameters.json').read())
-	word_index = json.loads(open(trained_dir + 'words_index.json').read())
+	words_index = json.loads(open(trained_dir + 'words_index.json').read())
 	labels = json.loads(open(trained_dir + 'labels.json').read())
 
 	with open(trained_dir + 'embeddings.pickle', 'rb') as input_file:
 		fetched_embedding = pickle.load(input_file)
 	embedding_mat = np.array(fetched_embedding, dtype = np.float32)
 
-	return params, word_index, labels, embedding_mat
+	return params, words_index, labels, embedding_mat
 
 def load_test_data(test_file, labels):
 	df = pd.read_csv(test_file, sep='|')
@@ -42,23 +42,23 @@ def load_test_data(test_file, labels):
 
 	return test_examples, y_, df
 
-def map_word_to_index(examples, word_index):
+def map_word_to_index(examples, words_index):
 	x_ = []
 	for example in examples:
 		temp = []
 		for word in example:
-			if word in word_index:
-				temp.append(word_index[word])
+			if word in words_index:
+				temp.append(words_index[word])
 			else:
 				temp.append(0)
 		x_.append(temp)
 	return x_
 
 def predict_unseen_data(test_file, trained_dir):
-	params, word_index, labels, embedding_mat = load_trained_params(trained_dir)
+	params, words_index, labels, embedding_mat = load_trained_params(trained_dir)
 	x_, y_, df = load_test_data(test_file, labels)
 	x_ = data_helpers.pad_sentences(x_, params=params)
-	x_ = map_word_to_index(x_, word_index)
+	x_ = map_word_to_index(x_, words_index)
 
 	x_test, y_test = np.asarray(x_), None
 	if y_ is not None:
@@ -71,9 +71,7 @@ def predict_unseen_data(test_file, trained_dir):
 	os.makedirs(predicted_dir)
 
 	with tf.Graph().as_default():
-		session_conf = tf.ConfigProto(
-			allow_soft_placement = params['allow_soft_placement'],
-			log_device_placement = params['log_device_placement'])
+		session_conf = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
 		sess = tf.Session(config=session_conf)
 		with sess.as_default():
 			cnn_lstm = TextCNNLSTM(

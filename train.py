@@ -50,9 +50,7 @@ def train_cnn_lstm(input_file):
 	logging.critical('Train: {}, dev: {}, test: {}'.format(len(x_train), dev_size, test_size))
 
 	with tf.Graph().as_default():
-		session_conf = tf.ConfigProto(
-			allow_soft_placement=params['allow_soft_placement'],
-			log_device_placement=params['log_device_placement'])
+		session_conf = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
 		sess = tf.Session(config=session_conf)
 		with sess.as_default():
 			cnn_lstm = TextCNNLSTM(
@@ -179,9 +177,8 @@ def train_cnn_lstm(input_file):
 	shutil.rmtree(checkpoint_dir)
 	logging.critical('{} has been removed'.format(checkpoint_dir))
 
-	params['sequence_length'] = x_.shape[1]
-
 	# Save the trained parameters such as sequence length, needed for predicting unseen data in future
+	params['sequence_length'] = x_.shape[1]
 	with open(trained_dir + 'trained_parameters.json', 'w') as outfile:
 		json.dump(params, outfile, indent=4, sort_keys=True, ensure_ascii=False)
 
