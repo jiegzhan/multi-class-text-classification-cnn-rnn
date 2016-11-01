@@ -9,6 +9,7 @@ import pandas as pd
 import gensim as gs
 from pprint import pprint
 from collections import Counter
+from tensorflow.contrib import learn
 
 def clean_str(s):
 	s = re.sub(r"[^A-Za-z0-9:(),!?\'\`]", " ", s)
