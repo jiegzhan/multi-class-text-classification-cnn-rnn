@@ -136,7 +136,7 @@ def predict_unseen_data(test_file, trained_dir):
 
 if __name__ == '__main__':
 	test_file = './data/bank_debit/3000.csv'
-	# test_file = './data/bank_debit/130000.csv'
+	test_file = './data/bank_debit/130000.csv'
 	test_file = './trained_results/data_test.csv'
 	trained_dir = './trained_results/'
 	predict_unseen_data(test_file, trained_dir)
