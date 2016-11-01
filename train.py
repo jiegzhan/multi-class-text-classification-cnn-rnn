@@ -10,8 +10,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from pprint import pprint
-from cnnlstm import cnnlstm_class
-from tensorflow.contrib import learn
+from text_cnn_lstm import TextCNNLSTM
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -57,10 +56,9 @@ with tf.Graph().as_default():
 		log_device_placement=params['log_device_placement'])
 	sess = tf.Session(config=session_conf)
 	with sess.as_default():
-		lstm = cnnlstm_class(
+		lstm = TextCNNLSTM(
 			embedding_mat = embedding_mat,
 			non_static = params['non_static'],
-			lstm_type = params['lstm_type'],
 			hidden_unit = params['hidden_unit'],
 			sequence_length = x_.shape[1],
 			max_pool_size = params['max_pool_size'],
@@ -110,10 +108,10 @@ with tf.Graph().as_default():
 				lstm.pad: np.zeros([len(x_batch), 1, params['embedding_dim'], 1]),
 				lstm.real_len: real_len(x_batch),
 			}
-			step, loss, accuracy, nb_correct, predictions = sess.run(
-				[global_step, lstm.loss, lstm.accuracy, lstm.nb_correct, lstm.predictions], feed_dict)
+			step, loss, accuracy, num_correct, predictions = sess.run(
+				[global_step, lstm.loss, lstm.accuracy, lstm.num_correct, lstm.predictions], feed_dict)
 			# logging.info("VALID step {}, loss {:g}, acc {:g}".format(step, loss, accuracy))
-			return accuracy, loss, nb_correct, predictions
+			return accuracy, loss, num_correct, predictions
 
 		# Training starts
 		train_batches = data_helpers.batch_iter(list(zip(x_train, y_train)), params['batch_size'], params['num_epochs'])
