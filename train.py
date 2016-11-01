@@ -15,7 +15,7 @@ from tensorflow.contrib import learn
 
 logging.getLogger().setLevel(logging.INFO)
 
-params = json.loads(open('./parameters.json').read())
+params = json.loads(open('./training_config.json').read())
 
 input_file = './data/bank_debit/input_40000.csv'
 x_, y_, vocabulary, vocabulary_inv, df, labels = data_helpers.load_data(input_file)
@@ -31,14 +31,15 @@ test_size = int(0.1 * len(x_))
 x, x_test = x_[:-test_size], x_[-test_size:]
 y, y_test = y_[:-test_size], y_[-test_size:]
 
+trained_dir = './trained_results/'
 df_train, df_test = df[:-test_size], df[-test_size:]
-if os.path.exists('./train_result/'):
-	shutil.rmtree('./train_result/')
-	logging.critical('The old train_result directory has been deleted')
-os.makedirs('./train_result/')
+if os.path.exists(trained_dir):
+	shutil.rmtree(trained_dir)
+	logging.critical('The old directory {} has been deleted'.format(trained_dir))
+os.makedirs(trained_dir)
 
-df_train.to_csv('./train_result/df_train.csv', index=False, sep='|')
-df_test.to_csv('./train_result/df_test.csv', index=False, sep='|')
+df_train.to_csv(trained_dir + 'data_train.csv', index=False, sep='|')
+df_test.to_csv(trained_dir + 'data_test.csv', index=False, sep='|')
 
 shuffle_indices = np.random.permutation(np.arange(len(y)))
 x_shuffled = x[shuffle_indices]
@@ -78,7 +79,7 @@ with tf.Graph().as_default():
 		checkpoint_dir = os.path.abspath(os.path.join(os.path.curdir, "train_checkpoints"))
 		if os.path.exists(checkpoint_dir):
 			shutil.rmtree(checkpoint_dir)
-			logging.critical('The old checkpoint directory has beed deleted')
+			logging.critical('The old checkpoint directory {} has beed deleted'.format(checkpoint_dir))
 		os.makedirs(checkpoint_dir)
 		checkpoint_prefix = os.path.join(checkpoint_dir, "model")
 
@@ -161,24 +162,31 @@ with tf.Graph().as_default():
 				predicted_labels.append(labels[prediction])
 
 		df_test['PREDICTED'] = predicted_labels
-		df_test.to_csv('./train_result/final.csv', index=False, columns=sorted(df_test.columns, reverse=True))
+		df_test_correct = df_test[df_test['PREDICTED'] == df_test['PROPOSED_CATEGORY']]
+		df_test_non_correct = df_test[df_test['PREDICTED'] != df_test['PROPOSED_CATEGORY']]
+
+		columns = sorted(df_test.columns, reverse=True)
+		df_test.to_csv(trained_dir + 'predictions_all.csv', index=False, columns=columns, sep='|')
+		df_test_correct.to_csv(trained_dir + 'predictions_correct.csv', index=False, columns=columns, sep='|')
+		df_test_non_correct.to_csv(trained_dir + 'predictions_non_correct.csv', index=False, columns=columns, sep='|')
 
 		logging.critical('Accuray on test set is {}'.format(float(total_test_correct) / test_size))
 		logging.critical('total_test_correct: {}'.format(total_test_correct))
 
-with open('./train_result/word_index.json', 'w') as outfile:
+with open(trained_dir + 'words_index.json', 'w') as outfile:
 	json.dump(vocabulary, outfile, indent=4, ensure_ascii=False)
-with open('./train_result/embedding.pickle', 'wb') as outfile:
+with open(trained_dir + 'embeddings.pickle', 'wb') as outfile:
 	pickle.dump(embedding_mat, outfile, pickle.HIGHEST_PROTOCOL)
-with open('./train_result/labels.json', 'w') as outfile:
+with open(trained_dir + 'labels.json', 'w') as outfile:
 	json.dump(labels, outfile, indent=4, ensure_ascii=False)
 
-os.rename(path, './train_result/best_model.ckpt')
-os.rename(path + '.meta', './train_result/best_model.meta')
-# shutil.rmtree('./train_result/')
+os.rename(path, trained_dir + 'best_model.ckpt')
+os.rename(path + '.meta', trained_dir + 'best_model.meta')
+shutil.rmtree(checkpoint_dir)
+logging.critical('{} has been removed'.format(checkpoint_dir))
 
 params['sequence_length'] = x_.shape[1]
-with open('./train_result/parameters.json', 'w') as outfile:
-	json.dump(params, outfile, indent=4, sort_keys=True, ensure_ascii=False)
 
-print(embedding_mat.shape)
+# Save the trained parameters such as sequence length, needed for predicting unseen data in future
+with open(trained_dir + 'trained_parameters.json', 'w') as outfile:
+	json.dump(params, outfile, indent=4, sort_keys=True, ensure_ascii=False)
