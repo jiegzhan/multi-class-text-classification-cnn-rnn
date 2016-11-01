@@ -54,7 +54,7 @@ def map_word_to_index(examples, word_index):
 		x_.append(temp)
 	return x_
 
-def predict(test_file, trained_dir):
+def predict_unseen_data(test_file, trained_dir):
 	params, word_index, labels, embedding_mat = load_trained_params(trained_dir)
 	x_, y_, df = load_test_data(test_file, labels)
 	x_ = data_helpers.pad_sentences(x_, params=params)
@@ -76,7 +76,7 @@ def predict(test_file, trained_dir):
 			log_device_placement = params['log_device_placement'])
 		sess = tf.Session(config=session_conf)
 		with sess.as_default():
-			lstm = TextCNNLSTM(
+			cnn_lstm = TextCNNLSTM(
 				embedding_mat = embedding_mat,
 				non_static = params['non_static'],
 				hidden_unit = params['hidden_unit'],
@@ -93,13 +93,13 @@ def predict(test_file, trained_dir):
 
 			def predict_step(x_batch):
 				feed_dict = {
-					lstm.input_x: x_batch,
-					lstm.dropout_keep_prob: 1.0,
-					lstm.batch_size: len(x_batch),
-					lstm.pad: np.zeros([len(x_batch), 1, params['embedding_dim'], 1]),
-					lstm.real_len: real_len(x_batch),
+					cnn_lstm.input_x: x_batch,
+					cnn_lstm.dropout_keep_prob: 1.0,
+					cnn_lstm.batch_size: len(x_batch),
+					cnn_lstm.pad: np.zeros([len(x_batch), 1, params['embedding_dim'], 1]),
+					cnn_lstm.real_len: real_len(x_batch),
 				}
-				predictions = sess.run([lstm.predictions], feed_dict)
+				predictions = sess.run([cnn_lstm.predictions], feed_dict)
 				return predictions
 
 			checkpoint_file = trained_dir + 'best_model.ckpt'
@@ -139,4 +139,4 @@ if __name__ == '__main__':
 	# test_file = './data/bank_debit/130000.csv'
 	test_file = './trained_results/data_test.csv'
 	trained_dir = './trained_results/'
-	predict(test_file, trained_dir)
+	predict_unseen_data(test_file, trained_dir)

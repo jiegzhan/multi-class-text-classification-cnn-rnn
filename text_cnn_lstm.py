@@ -2,8 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 class TextCNNLSTM(object):
-	def __init__(
-		self, embedding_mat, non_static, hidden_unit, sequence_length, max_pool_size,
+	def __init__(self, embedding_mat, non_static, hidden_unit, sequence_length, max_pool_size,
 		num_classes, embedding_size, filter_sizes, num_filters, l2_reg_lambda=0.0):
 
 		self.input_x = tf.placeholder(tf.int32, [None, sequence_length], name="input_x")
