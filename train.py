@@ -67,7 +67,6 @@ def train_cnn_lstm(input_file):
 				embedding_size = params['embedding_dim'],
 				l2_reg_lambda = params['l2_reg_lambda'])
 
-			# Define Training procedure
 			global_step = tf.Variable(0, name="global_step", trainable=False)
 			optimizer = tf.train.RMSPropOptimizer(1e-3, decay = 0.9)
 			grads_and_vars = optimizer.compute_gradients(cnn_lstm.loss)
@@ -91,8 +90,8 @@ def train_cnn_lstm(input_file):
 					cnn_lstm.input_x: x_batch,
 					cnn_lstm.input_y: y_batch,
 					cnn_lstm.dropout_keep_prob: params['dropout_keep_prob'],
-					cnn_lstm.batch_size: params['batch_size'],
-					cnn_lstm.pad: np.zeros([params['batch_size'], 1, params['embedding_dim'], 1]),
+					cnn_lstm.batch_size: len(x_batch),
+					cnn_lstm.pad: np.zeros([len(x_batch), 1, params['embedding_dim'], 1]),
 					cnn_lstm.real_len: real_len(x_batch),
 				}
 				_, step, loss, accuracy = sess.run([train_op, global_step, cnn_lstm.loss, cnn_lstm.accuracy], feed_dict)
@@ -122,7 +121,7 @@ def train_cnn_lstm(input_file):
 
 				# Evaluate on dev set (batch by batch) during training
 				if current_step % params['evaluate_every'] == 0:
-					dev_batches = data_helpers.batch_iter_test(list(zip(x_dev, y_dev)), params['batch_size'], 1)
+					dev_batches = data_helpers.batch_iter(list(zip(x_dev, y_dev)), params['batch_size'], 1)
 
 					total_dev_correct = 0
 					for dev_batch in dev_batches:
@@ -146,7 +145,7 @@ def train_cnn_lstm(input_file):
 			# Evaluate on test set (batch by batch) when training is complete
 			saver.restore(sess, checkpoint_prefix + '-' + str(best_at_step))
 
-			test_batches = data_helpers.batch_iter_test(list(zip(x_test, y_test)), params['batch_size'], 1)
+			test_batches = data_helpers.batch_iter(list(zip(x_test, y_test)), params['batch_size'], 1)
 			total_test_correct, predicted_labels = 0, []
 
 			for test_batch in test_batches:

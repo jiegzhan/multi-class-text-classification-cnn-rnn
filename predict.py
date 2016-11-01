@@ -108,7 +108,7 @@ def predict_unseen_data(test_file, trained_dir):
 			saver.restore(sess, checkpoint_file)
 			print('{} has been loaded'.format(checkpoint_file))
 
-			batches = data_helpers.batch_iter_test(list(x_test), params['batch_size'], 1)
+			batches = data_helpers.batch_iter(list(x_test), params['batch_size'], 1, predict=True)
 
 			predictions, predict_labels = [], []
 			for x_batch in batches:
