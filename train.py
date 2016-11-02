@@ -5,7 +5,7 @@ import time
 import shutil
 import pickle
 import logging
-import data_helpers
+import data_helper
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -16,9 +16,9 @@ logging.getLogger().setLevel(logging.INFO)
 def train_cnn_lstm(input_file):
 	params = json.loads(open('./training_config.json').read())
 
-	x_, y_, vocabulary, vocabulary_inv, df, labels = data_helpers.load_data(input_file)
-	trained_vecs = data_helpers.load_trained_vecs(vocabulary)
-	data_helpers.add_unknown_words(trained_vecs, vocabulary)
+	x_, y_, vocabulary, vocabulary_inv, df, labels = data_helper.load_data(input_file)
+	trained_vecs = data_helper.load_trained_vecs(vocabulary)
+	data_helper.add_unknown_words(trained_vecs, vocabulary)
 
 	embedding_mat = [trained_vecs[p] for i, p in enumerate(vocabulary_inv)]
 	embedding_mat = np.array(embedding_mat, dtype = np.float32)
@@ -108,7 +108,7 @@ def train_cnn_lstm(input_file):
 				return accuracy, loss, num_correct, predictions
 
 			# Training starts
-			train_batches = data_helpers.batch_iter(list(zip(x_train, y_train)), params['batch_size'], params['num_epochs'])
+			train_batches = data_helper.batch_iter(list(zip(x_train, y_train)), params['batch_size'], params['num_epochs'])
 			best_accuracy, best_at_stp = 0, 0
 
 			# Train the model batch by batch
@@ -119,7 +119,7 @@ def train_cnn_lstm(input_file):
 
 				# Evaluate on dev set (batch by batch) during training
 				if current_step % params['evaluate_every'] == 0:
-					dev_batches = data_helpers.batch_iter(list(zip(x_dev, y_dev)), params['batch_size'], 1)
+					dev_batches = data_helper.batch_iter(list(zip(x_dev, y_dev)), params['batch_size'], 1)
 
 					total_dev_correct = 0
 					for dev_batch in dev_batches:
@@ -143,7 +143,7 @@ def train_cnn_lstm(input_file):
 			# Evaluate on test set (batch by batch) when training is complete
 			saver.restore(sess, checkpoint_prefix + '-' + str(best_at_step))
 
-			test_batches = data_helpers.batch_iter(list(zip(x_test, y_test)), params['batch_size'], 1, predict=True)
+			test_batches = data_helper.batch_iter(list(zip(x_test, y_test)), params['batch_size'], 1, predict=True)
 			total_test_correct, predicted_labels = 0, []
 
 			for test_batch in test_batches:

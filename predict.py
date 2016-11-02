@@ -3,11 +3,10 @@ import sys
 import json
 import pickle
 import shutil
-import data_helpers
+import data_helper
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from pprint import pprint
 from text_cnn_lstm import TextCNNLSTM
 
 def load_trained_params(trained_dir):
@@ -26,7 +25,7 @@ def load_test_data(test_file, labels):
 	select = ['DESCRIPTION_UNMASKED']
 
 	df = df.dropna(axis=0, how='any', subset=select)
-	test_examples = df[select[0]].apply(lambda x: data_helpers.clean_str(x).split(' ')).tolist()
+	test_examples = df[select[0]].apply(lambda x: data_helper.clean_str(x).split(' ')).tolist()
 
 	num_labels = len(labels)
 	one_hot = np.zeros((num_labels, num_labels), int)
@@ -58,7 +57,7 @@ def map_word_to_index(examples, words_index):
 def predict_unseen_data(test_file, trained_dir):
 	params, words_index, labels, embedding_mat = load_trained_params(trained_dir)
 	x_, y_, df = load_test_data(test_file, labels)
-	x_ = data_helpers.pad_sentences(x_, params=params)
+	x_ = data_helper.pad_sentences(x_, params=params)
 	x_ = map_word_to_index(x_, words_index)
 
 	x_test, y_test = np.asarray(x_), None
@@ -107,7 +106,7 @@ def predict_unseen_data(test_file, trained_dir):
 			saver.restore(sess, checkpoint_file)
 			print('{} has been loaded'.format(checkpoint_file))
 
-			batches = data_helpers.batch_iter(list(x_test), params['batch_size'], 1, predict=True)
+			batches = data_helper.batch_iter(list(x_test), params['batch_size'], 1, predict=True)
 
 			predictions, predict_labels = [], []
 			for x_batch in batches:
