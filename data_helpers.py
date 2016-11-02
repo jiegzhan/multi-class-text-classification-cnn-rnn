@@ -70,13 +70,6 @@ def build_vocab(sentences):
 	vocabulary = {x: i for i, x in enumerate(vocabulary_inv)}
 	return [vocabulary, vocabulary_inv]
 
-def build_input_data(sentences, labels, vocabulary):
-	x = np.array([[vocabulary[word] for word in sentence] for sentence in sentences])
-	print("x are {}".format(x))
-	y = np.array(labels)
-	print("y are {}".format(y))
-	return [x, y]
-
 def batch_iter(data, batch_size, num_epochs, predict=False):
 	data = np.array(data)
 	data_size = len(data)
@@ -121,6 +114,13 @@ def load_data_and_labels(filename):
 	for i in range(10):
 		print('{} ---> {}'.format(y[i], examples[i]))
 	return [examples, y, df, labels]
+
+def build_input_data(sentences, labels, vocabulary):
+	x = np.array([[vocabulary[word] for word in sentence] for sentence in sentences])
+	print("x are {}".format(x))
+	y = np.array(labels)
+	print("y are {}".format(y))
+	return [x, y]
 
 def load_data(filename):
 	sentences, labels, df, labels_list = load_data_and_labels(filename)

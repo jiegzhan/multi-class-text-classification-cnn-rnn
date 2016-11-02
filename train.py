@@ -143,7 +143,7 @@ def train_cnn_lstm(input_file):
 			# Evaluate on test set (batch by batch) when training is complete
 			saver.restore(sess, checkpoint_prefix + '-' + str(best_at_step))
 
-			test_batches = data_helpers.batch_iter(list(zip(x_test, y_test)), params['batch_size'], 1)
+			test_batches = data_helpers.batch_iter(list(zip(x_test, y_test)), params['batch_size'], 1, predict=True)
 			total_test_correct, predicted_labels = 0, []
 
 			for test_batch in test_batches:
@@ -154,17 +154,38 @@ def train_cnn_lstm(input_file):
 					predicted_labels.append(labels[prediction])
 
 			df_test['PREDICTED'] = predicted_labels
-			df_test_correct = df_test[df_test['PREDICTED'] == df_test['PROPOSED_CATEGORY']]
-			df_test_non_correct = df_test[df_test['PREDICTED'] != df_test['PROPOSED_CATEGORY']]
-
 			columns = sorted(df_test.columns, reverse=True)
 			df_test.to_csv(trained_dir + 'predictions_all.csv', index=False, columns=columns, sep='|')
+
+			df_test_correct = df_test[df_test['PREDICTED'] == df_test['PROPOSED_CATEGORY']]
 			df_test_correct.to_csv(trained_dir + 'predictions_correct.csv', index=False, columns=columns, sep='|')
+
+			df_test_non_correct = df_test[df_test['PREDICTED'] != df_test['PROPOSED_CATEGORY']]
 			df_test_non_correct.to_csv(trained_dir + 'predictions_non_correct.csv', index=False, columns=columns, sep='|')
 
-			logging.critical('Accuray on test set is {}'.format(float(total_test_correct) / test_size))
-			logging.critical('total_test_correct: {}'.format(total_test_correct))
+			# Generate a classification report after predicting on the test set
+			reports, summary = [], {}
+			summary['total_correct'], summary['total_non_correct'] = df_test_correct.shape[0], df_test_non_correct.shape[0]
+			summary['total_test_examples'] = df_test.shape[0]
+			summary['accuracy'] = float(summary['total_correct']) / summary['total_test_examples']
+			reports.append(summary)
 
+			total_counts = df_test['PREDICTED'].value_counts().to_dict()
+			correct_counts = df_test_correct['PREDICTED'].value_counts().to_dict()
+			non_correct_counts = df_test_non_correct['PREDICTED'].value_counts().to_dict()
+
+			for key in labels:
+				report = {}
+				report['label'], report['total'] = key, int(total_counts.get(key, 0))
+				report['correct'], report['non_correct'] = int(correct_counts.get(key, 0)), int(non_correct_counts.get(key, 0))
+				reports.append(report)
+
+			with open(trained_dir + 'classification_report.json', 'w') as outfile:
+				json.dump(reports, outfile, indent=4)
+
+			logging.critical('Accuracy on test set is {}'.format(float(total_test_correct) / test_size))
+
+	# Save trained parameters and files
 	with open(trained_dir + 'words_index.json', 'w') as outfile:
 		json.dump(vocabulary, outfile, indent=4, ensure_ascii=False)
 	with open(trained_dir + 'embeddings.pickle', 'wb') as outfile:

@@ -7,6 +7,7 @@ import data_helpers
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from pprint import pprint
 from text_cnn_lstm import TextCNNLSTM
 
 def load_trained_params(trained_dir):
@@ -122,15 +123,32 @@ def predict_unseen_data(test_file, trained_dir):
 
 			if y_test is not None:
 				y_test = np.array(np.argmax(y_test, axis=1))
-				correct_predictions = float(sum(np.array(predictions) == y_test))
-				print('The number of test examples is: {}'.format(len(y_test)))
-				print('The number of correct predictions is: {}'.format(correct_predictions))
-				print('{}% of the predictions are correct'.format(float(correct_predictions) * 100 / len(y_test)))
 
 				df_correct = df[df['PREDICTED'] == df['PROPOSED_CATEGORY']]
-				df_non_correct = df_non_correct = df[df['PREDICTED'] != df['PROPOSED_CATEGORY']]
 				df_correct.to_csv(predicted_dir + 'predictions_correct.csv', index=False, columns=columns, sep='|')
+
+				df_non_correct = df_non_correct = df[df['PREDICTED'] != df['PROPOSED_CATEGORY']]
 				df_non_correct.to_csv(predicted_dir + 'predictions_non_correct.csv', index=False, columns=columns, sep='|')
+
+				# Generate a classification report
+				reports, accuracy = [], {}
+				accuracy['total_correct'] = int(sum(np.array(predictions) == y_test))
+				accuracy['total_non_correct'] = int(sum(np.array(predictions) != y_test))
+				accuracy['total_test_examples'] = len(y_test)
+				accuracy['accuracy'] = float(accuracy['total_correct']) / len(y_test)
+				reports.append(accuracy)
+
+				total_counts = df['PREDICTED'].value_counts().to_dict()
+				correct_counts = df_correct['PREDICTED'].value_counts().to_dict()
+				non_correct_counts = df_non_correct['PREDICTED'].value_counts().to_dict()
+
+				for key in labels:
+					report = {}
+					report['label'], report['total'] = key, int(total_counts.get(key, 0))
+					report['correct'], report['non_correct'] = int(correct_counts.get(key, 0)), int(non_correct_counts.get(key, 0))
+					reports.append(report)
+				with open(predicted_dir + 'classification_report.json', 'w') as outfile:
+					json.dump(reports, outfile, indent=4)
 
 if __name__ == '__main__':
 	test_file = './data/bank_debit/3000.csv'
