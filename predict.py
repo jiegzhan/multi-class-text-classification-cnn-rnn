@@ -54,7 +54,10 @@ def map_word_to_index(examples, words_index):
 		x_.append(temp)
 	return x_
 
-def predict_unseen_data(test_file, trained_dir):
+def predict_unseen_data():
+	trained_dir = sys.argv[1]
+	test_file = sys.argv[2]
+
 	params, words_index, labels, embedding_mat = load_trained_params(trained_dir)
 	x_, y_, df = load_test_data(test_file, labels)
 	x_ = data_helper.pad_sentences(x_, params=params)
@@ -67,7 +70,6 @@ def predict_unseen_data(test_file, trained_dir):
 	predicted_dir = './predicted_results/'
 	if os.path.exists(predicted_dir):
 		shutil.rmtree(predicted_dir)
-		print('The old predict_result directory {} has been deleted'.format(predicted_dir))
 	os.makedirs(predicted_dir)
 
 	with tf.Graph().as_default():
@@ -86,8 +88,8 @@ def predict_unseen_data(test_file, trained_dir):
 				embedding_size = params['embedding_dim'],
 				l2_reg_lambda = params['l2_reg_lambda'])
 
-			def real_len(xb):
-				return [np.ceil(np.argmin(i + [0])*1.0/params['max_pool_size']) for i in xb]
+			def real_len(batches):
+				return [np.ceil(np.argmin(batch + [0]) * 1.0 / params['max_pool_size']) for batch in batches]
 
 			def predict_step(x_batch):
 				feed_dict = {
@@ -150,8 +152,4 @@ def predict_unseen_data(test_file, trained_dir):
 					json.dump(reports, outfile, indent=4)
 
 if __name__ == '__main__':
-	test_file = './data/bank_debit/3000.csv'
-	test_file = './data/bank_debit/130000.csv'
-	test_file = './trained_results/data_test.csv'
-	trained_dir = './trained_results/'
-	predict_unseen_data(test_file, trained_dir)
+	predict_unseen_data()
