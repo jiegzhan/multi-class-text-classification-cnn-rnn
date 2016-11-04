@@ -1,13 +1,16 @@
 import os
 import sys
 import json
-import pickle
 import shutil
+import pickle
+import logging
 import data_helper
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 from text_cnn_lstm import TextCNNLSTM
+
+logging.getLogger().setLevel(logging.INFO)
 
 def load_trained_params(trained_dir):
 	params = json.loads(open(trained_dir + 'trained_parameters.json').read())
@@ -17,7 +20,6 @@ def load_trained_params(trained_dir):
 	with open(trained_dir + 'embeddings.pickle', 'rb') as input_file:
 		fetched_embedding = pickle.load(input_file)
 	embedding_mat = np.array(fetched_embedding, dtype = np.float32)
-
 	return params, words_index, labels, embedding_mat
 
 def load_test_data(test_file, labels):
@@ -39,7 +41,6 @@ def load_test_data(test_file, labels):
 
 	not_select = list(set(df.columns) - set(select))
 	df = df.drop(not_select, axis=1)
-
 	return test_examples, y_, df
 
 def map_word_to_index(examples, words_index):
@@ -56,6 +57,8 @@ def map_word_to_index(examples, words_index):
 
 def predict_unseen_data():
 	trained_dir = sys.argv[1]
+	if not trained_dir.endswith('/'):
+		trained_dir += '/'
 	test_file = sys.argv[2]
 
 	params, words_index, labels, embedding_mat = load_trained_params(trained_dir)
@@ -67,7 +70,8 @@ def predict_unseen_data():
 	if y_ is not None:
 		y_test = np.asarray(y_)
 
-	predicted_dir = './predicted_results/'
+	timestamp = trained_dir.split('/')[-2].split('_')[-1]
+	predicted_dir = './predicted_results_' + timestamp + '/'
 	if os.path.exists(predicted_dir):
 		shutil.rmtree(predicted_dir)
 	os.makedirs(predicted_dir)
@@ -106,14 +110,13 @@ def predict_unseen_data():
 			saver = tf.train.Saver(tf.all_variables())
 			saver = tf.train.import_meta_graph("{}.meta".format(checkpoint_file[:-5]))
 			saver.restore(sess, checkpoint_file)
-			print('{} has been loaded'.format(checkpoint_file))
+			logging.critical('{} has been loaded'.format(checkpoint_file))
 
 			batches = data_helper.batch_iter(list(x_test), params['batch_size'], 1, predict=True)
 
 			predictions, predict_labels = [], []
 			for x_batch in batches:
 				batch_predictions = predict_step(x_batch)[0]
-				print(batch_predictions)
 				for batch_prediction in batch_predictions:
 					predictions.append(batch_prediction)
 					predict_labels.append(labels[batch_prediction])
@@ -150,6 +153,8 @@ def predict_unseen_data():
 					reports.append(report)
 				with open(predicted_dir + 'classification_report.json', 'w') as outfile:
 					json.dump(reports, outfile, indent=4)
+
+			logging.critical('Prediction is complete, all files have been saved: {}'.format(predicted_dir))
 
 if __name__ == '__main__':
 	predict_unseen_data()
