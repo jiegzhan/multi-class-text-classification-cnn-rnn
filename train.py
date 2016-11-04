@@ -10,16 +10,19 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from text_cnn_lstm import TextCNNLSTM
+from sklearn.model_selection import train_test_split
 
 logging.getLogger().setLevel(logging.INFO)
 
 def train_cnn_lstm():
+	start_time = time.time()
 	input_file = sys.argv[1]
 	x_, y_, vocabulary, vocabulary_inv, df, labels = data_helper.load_data(input_file)
 
 	training_config = sys.argv[2]
 	params = json.loads(open(training_config).read())
 
+	# Assign a 300 dimension vector to each word
 	word_embeddings = data_helper.load_embeddings(vocabulary)
 	embedding_mat = [word_embeddings[word] for index, word in enumerate(vocabulary_inv)]
 	embedding_mat = np.array(embedding_mat, dtype = np.float32)
@@ -28,6 +31,15 @@ def train_cnn_lstm():
 	test_size = int(0.1 * len(x_))
 	x, x_test = x_[:-test_size], x_[-test_size:]
 	y, y_test = y_[:-test_size], y_[-test_size:]
+
+	# Split the train set into train set and dev set
+	shuffle_indices = np.random.permutation(np.arange(len(y)))
+	x_shuffled = x[shuffle_indices]
+	y_shuffled = y[shuffle_indices]
+	x_train, x_dev, y_train, y_dev = train_test_split(x_shuffled, y_shuffled, test_size=0.1)
+
+	logging.info('x_train: {}, x_dev: {}, x_test: {}'.format(len(x_train), len(x_dev), len(x_test)))
+	logging.info('y_train: {}, y_dev: {}, y_test: {}'.format(len(y_train), len(y_dev), len(y_test)))
 
 	# Create a directory, everything related to the training will be saved in this directory
 	timestamp = str(int(time.time()))
@@ -39,17 +51,6 @@ def train_cnn_lstm():
 	df_train, df_test = df[:-test_size], df[-test_size:]
 	df_train.to_csv(trained_dir + 'data_train.csv', index=False, sep='|')
 	df_test.to_csv(trained_dir + 'data_test.csv', index=False, sep='|')
-
-	shuffle_indices = np.random.permutation(np.arange(len(y)))
-	x_shuffled = x[shuffle_indices]
-	y_shuffled = y[shuffle_indices]
-
-	# Split the train set into train set and dev set
-	dev_size = int(0.1 * len(x_shuffled))
-	x_train, x_dev = x_shuffled[:-dev_size], x_shuffled[-dev_size:]
-	y_train, y_dev = y_shuffled[:-dev_size], y_shuffled[-dev_size:]
-	logging.info('x_train: {}, x_dev: {}, x_test: {}'.format(len(x_train), len(x_dev), len(x_test)))
-	logging.info('y_train: {}, y_dev: {}, y_test: {}'.format(len(y_train), len(y_dev), len(y_test)))
 
 	graph = tf.Graph()
 	with graph.as_default():
@@ -69,11 +70,11 @@ def train_cnn_lstm():
 				l2_reg_lambda = params['l2_reg_lambda'])
 
 			global_step = tf.Variable(0, name='global_step', trainable=False)
-			optimizer = tf.train.RMSPropOptimizer(1e-3, decay = 0.9)
+			optimizer = tf.train.RMSPropOptimizer(1e-3, decay=0.9)
 			grads_and_vars = optimizer.compute_gradients(cnn_lstm.loss)
 			train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
 
-			# Checkpoint files will be saved in this directory during traing
+			# Checkpoint files will be saved in this directory during training
 			checkpoint_dir = './checkpoints_' + timestamp + '/'
 			if os.path.exists(checkpoint_dir):
 				shutil.rmtree(checkpoint_dir)
@@ -134,13 +135,13 @@ def train_cnn_lstm():
 					logging.info('Accuracy on dev set: {}'.format(accuracy))
 
 					if accuracy >= best_accuracy:
-						best_accuracy = accuracy
-						best_at_step = current_step
+						best_accuracy, best_at_step = accuracy, current_step
 						path = saver.save(sess, checkpoint_prefix, global_step=current_step)
 						logging.critical('Saved model {} at step {}'.format(path, best_at_step))
 						logging.critical('Best accuracy {} at step {}'.format(best_accuracy, best_at_step))
 
 			logging.critical('Training is complete, testing the best model on x_test and y_test')
+			end_time = time.time()
 
 			# Evaluate x_test and y_test
 			saver.restore(sess, checkpoint_prefix + '-' + str(best_at_step))
@@ -170,6 +171,7 @@ def train_cnn_lstm():
 			summary['total_correct'], summary['total_non_correct'] = df_test_correct.shape[0], df_test_non_correct.shape[0]
 			summary['total_test_examples'] = df_test.shape[0]
 			summary['accuracy'] = float(summary['total_correct']) / summary['total_test_examples']
+			summary['training_time'] = int(end_time - start_time)
 			reports.append(summary)
 
 			total_counts = df_test['PREDICTED'].value_counts().to_dict()
