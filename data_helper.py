@@ -41,15 +41,15 @@ def load_embeddings(vocabulary):
 			word_embeddings[word] = np.random.uniform(-0.25, 0.25, 300)
 	return word_embeddings
 
-def pad_sentences(sentences, padding_word="<PAD/>", params=None):
+def pad_sentences(sentences, padding_word="<PAD/>", forced_sequence_length=None):
 	"""Pad setences during training or prediction"""
-	if params is None: # Train
+	if forced_sequence_length is None: # Train
 		sequence_length = max(len(x) for x in sentences)
 	else: # Prediction
 		logging.critical('This is prediction, reading the trained sequence length')
-		sequence_length = params['sequence_length']
-
+		sequence_length = forced_sequence_length
 	logging.critical('The maximum length is {}'.format(sequence_length))
+
 	padded_sentences = []
 	for i in range(len(sentences)):
 		sentence = sentences[i]

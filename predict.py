@@ -63,7 +63,7 @@ def predict_unseen_data():
 
 	params, words_index, labels, embedding_mat = load_trained_params(trained_dir)
 	x_, y_, df = load_test_data(test_file, labels)
-	x_ = data_helper.pad_sentences(x_, params=params)
+	x_ = data_helper.pad_sentences(x_, forced_sequence_length=params['sequence_length'])
 	x_ = map_word_to_index(x_, words_index)
 
 	x_test, y_test = np.asarray(x_), None
