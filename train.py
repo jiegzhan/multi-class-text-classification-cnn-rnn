@@ -13,8 +13,8 @@ from text_cnn_lstm import TextCNNLSTM
 
 logging.getLogger().setLevel(logging.INFO)
 
-def train_cnn_lstm(input_file):
-	params = json.loads(open('./training_config.json').read())
+def train_cnn_lstm(input_file, training_config):
+	params = json.loads(open(training_config).read())
 
 	x_, y_, vocabulary, vocabulary_inv, df, labels = data_helper.load_data(input_file)
 	trained_vecs = data_helper.load_trained_vecs(vocabulary)
@@ -22,20 +22,20 @@ def train_cnn_lstm(input_file):
 
 	embedding_mat = [trained_vecs[p] for i, p in enumerate(vocabulary_inv)]
 	embedding_mat = np.array(embedding_mat, dtype = np.float32)
-	print(embedding_mat.shape)
 
 	# Split the original dataset into train set and test set
 	test_size = int(0.1 * len(x_))
 	x, x_test = x_[:-test_size], x_[-test_size:]
 	y, y_test = y_[:-test_size], y_[-test_size:]
 
-	trained_dir = './trained_results/'
-	df_train, df_test = df[:-test_size], df[-test_size:]
+	# Create a directory, everything related to the training will be saved in this directory
+	timestamp = str(int(time.time()))
+	trained_dir = './trained_results_' + timestamp + '/'
 	if os.path.exists(trained_dir):
 		shutil.rmtree(trained_dir)
-		logging.critical('The old directory {} has been deleted'.format(trained_dir))
 	os.makedirs(trained_dir)
 
+	df_train, df_test = df[:-test_size], df[-test_size:]
 	df_train.to_csv(trained_dir + 'data_train.csv', index=False, sep='|')
 	df_test.to_csv(trained_dir + 'data_test.csv', index=False, sep='|')
 
@@ -47,41 +47,40 @@ def train_cnn_lstm(input_file):
 	dev_size = int(0.1 * len(x_shuffled))
 	x_train, x_dev = x_shuffled[:-dev_size], x_shuffled[-dev_size:]
 	y_train, y_dev = y_shuffled[:-dev_size], y_shuffled[-dev_size:]
-	logging.critical('Train: {}, dev: {}, test: {}'.format(len(x_train), dev_size, test_size))
+	logging.info('x_train: {}, x_dev: {}, x_test: {}'.format(len(x_train), len(x_dev), len(x_test)))
+	logging.info('y_train: {}, y_dev: {}, y_test: {}'.format(len(y_train), len(y_dev), len(y_test)))
 
-	with tf.Graph().as_default():
+	graph = tf.Graph()
+	with graph.as_default():
 		session_conf = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
 		sess = tf.Session(config=session_conf)
 		with sess.as_default():
 			cnn_lstm = TextCNNLSTM(
-				embedding_mat = embedding_mat,
-				non_static = params['non_static'],
-				hidden_unit = params['hidden_unit'],
-				sequence_length = x_.shape[1],
-				max_pool_size = params['max_pool_size'],
-				filter_sizes = map(int, params['filter_sizes'].split(",")),
+				embedding_mat=embedding_mat,
+				sequence_length=x_train.shape[1],
+				num_classes = y_train.shape[1],
+				non_static=params['non_static'],
+				hidden_unit=params['hidden_unit'],
+				max_pool_size=params['max_pool_size'],
+				filter_sizes=map(int, params['filter_sizes'].split(",")),
 				num_filters = params['num_filters'],
-				num_classes = y_.shape[1],
 				embedding_size = params['embedding_dim'],
 				l2_reg_lambda = params['l2_reg_lambda'])
 
-			global_step = tf.Variable(0, name="global_step", trainable=False)
+			global_step = tf.Variable(0, name='global_step', trainable=False)
 			optimizer = tf.train.RMSPropOptimizer(1e-3, decay = 0.9)
 			grads_and_vars = optimizer.compute_gradients(cnn_lstm.loss)
 			train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
 
-			checkpoint_dir = os.path.abspath(os.path.join(os.path.curdir, "train_checkpoints"))
+			# Checkpoint files will be saved in this directory during traing
+			checkpoint_dir = './checkpoints_' + timestamp + '/'
 			if os.path.exists(checkpoint_dir):
 				shutil.rmtree(checkpoint_dir)
-				logging.critical('The old checkpoint directory {} has beed deleted'.format(checkpoint_dir))
 			os.makedirs(checkpoint_dir)
-			checkpoint_prefix = os.path.join(checkpoint_dir, "model")
+			checkpoint_prefix = os.path.join(checkpoint_dir, 'model')
 
-			saver = tf.train.Saver(tf.all_variables())
-			sess.run(tf.initialize_all_variables())
-
-			def real_len(xb):
-				return [np.ceil(np.argmin(i + [0])*1.0/params['max_pool_size']) for i in xb]
+			def real_len(batches):
+				return [np.ceil(np.argmin(batch + [0]) * 1.0 / params['max_pool_size']) for batch in batches]
 
 			def train_step(x_batch, y_batch):
 				feed_dict = {
@@ -107,17 +106,20 @@ def train_cnn_lstm(input_file):
 					[global_step, cnn_lstm.loss, cnn_lstm.accuracy, cnn_lstm.num_correct, cnn_lstm.predictions], feed_dict)
 				return accuracy, loss, num_correct, predictions
 
-			# Training starts
+			saver = tf.train.Saver(tf.all_variables())
+			sess.run(tf.initialize_all_variables())
+
+			# Training starts here
 			train_batches = data_helper.batch_iter(list(zip(x_train, y_train)), params['batch_size'], params['num_epochs'])
 			best_accuracy, best_at_stp = 0, 0
 
-			# Train the model batch by batch
+			# Train the model with x_train and y_train
 			for train_batch in train_batches:
 				x_train_batch, y_train_batch = zip(*train_batch)
 				train_step(x_train_batch, y_train_batch)
 				current_step = tf.train.global_step(sess, global_step)
 
-				# Evaluate on dev set (batch by batch) during training
+				# Evaluate the model with x_dev and y_dev
 				if current_step % params['evaluate_every'] == 0:
 					dev_batches = data_helper.batch_iter(list(zip(x_dev, y_dev)), params['batch_size'], 1)
 
@@ -127,20 +129,19 @@ def train_cnn_lstm(input_file):
 						acc, loss, num_dev_correct, predictions = dev_step(x_dev_batch, y_dev_batch)
 						total_dev_correct += num_dev_correct
 
-					accuracy = float(total_dev_correct) / dev_size
-					logging.critical('total_dev_correct: {}'.format(total_dev_correct))
-					logging.critical('accuracy on dev: {}'.format(accuracy))
+					accuracy = float(total_dev_correct) / len(y_dev)
+					logging.critical('Accuracy on dev set: {}'.format(accuracy))
 
 					if accuracy >= best_accuracy:
 						best_accuracy = accuracy
 						best_at_step = current_step
 						path = saver.save(sess, checkpoint_prefix, global_step=current_step)
-						logging.critical('Save the best model checkpoint to {} at evaluate step {}'.format(path, best_at_step))
-						logging.critical('Best accuracy on dev set: {}, at step {}'.format(best_accuracy, best_at_step))
+						logging.critical('Save model {} at step {}'.format(path, best_at_step))
+						logging.critical('Best accuracy {} at step {}'.format(best_accuracy, best_at_step))
 
-			logging.critical('Training is complete, testing the best model on test set')
+			logging.critical('Training is complete, testing the best model on x_test and y_test')
 
-			# Evaluate on test set (batch by batch) when training is complete
+			# Evaluate x_test and y_test
 			saver.restore(sess, checkpoint_prefix + '-' + str(best_at_step))
 
 			test_batches = data_helper.batch_iter(list(zip(x_test, y_test)), params['batch_size'], 1, predict=True)
@@ -183,9 +184,9 @@ def train_cnn_lstm(input_file):
 			with open(trained_dir + 'classification_report.json', 'w') as outfile:
 				json.dump(reports, outfile, indent=4)
 
-			logging.critical('Accuracy on test set is {}'.format(float(total_test_correct) / test_size))
+			logging.critical('Accuracy on test set: {}'.format(float(total_test_correct) / len(y_test)))
 
-	# Save trained parameters and files
+	# Save trained parameters and files since predict.py needs them
 	with open(trained_dir + 'words_index.json', 'w') as outfile:
 		json.dump(vocabulary, outfile, indent=4, ensure_ascii=False)
 	with open(trained_dir + 'embeddings.pickle', 'wb') as outfile:
@@ -198,11 +199,11 @@ def train_cnn_lstm(input_file):
 	shutil.rmtree(checkpoint_dir)
 	logging.critical('{} has been removed'.format(checkpoint_dir))
 
-	# Save the trained parameters such as sequence length, needed for predicting unseen data in future
-	params['sequence_length'] = x_.shape[1]
+	params['sequence_length'] = x_train.shape[1]
 	with open(trained_dir + 'trained_parameters.json', 'w') as outfile:
 		json.dump(params, outfile, indent=4, sort_keys=True, ensure_ascii=False)
 
 if __name__ == '__main__':
 	input_file = './data/bank_debit/input_40000.csv'
-	train_cnn_lstm(input_file)
+	training_config = './training_config.json'
+	train_cnn_lstm(input_file, training_config)
