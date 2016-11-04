@@ -13,14 +13,15 @@ from text_cnn_lstm import TextCNNLSTM
 
 logging.getLogger().setLevel(logging.INFO)
 
-def train_cnn_lstm(input_file, training_config):
+def train_cnn_lstm():
+	input_file = sys.argv[1]
+	x_, y_, vocabulary, vocabulary_inv, df, labels = data_helper.load_data(input_file)
+
+	training_config = sys.argv[2]
 	params = json.loads(open(training_config).read())
 
-	x_, y_, vocabulary, vocabulary_inv, df, labels = data_helper.load_data(input_file)
-	trained_vecs = data_helper.load_trained_vecs(vocabulary)
-	data_helper.add_unknown_words(trained_vecs, vocabulary)
-
-	embedding_mat = [trained_vecs[p] for i, p in enumerate(vocabulary_inv)]
+	word_embeddings = data_helper.load_embeddings(vocabulary)
+	embedding_mat = [word_embeddings[word] for index, word in enumerate(vocabulary_inv)]
 	embedding_mat = np.array(embedding_mat, dtype = np.float32)
 
 	# Split the original dataset into train set and test set
@@ -130,13 +131,13 @@ def train_cnn_lstm(input_file, training_config):
 						total_dev_correct += num_dev_correct
 
 					accuracy = float(total_dev_correct) / len(y_dev)
-					logging.critical('Accuracy on dev set: {}'.format(accuracy))
+					logging.info('Accuracy on dev set: {}'.format(accuracy))
 
 					if accuracy >= best_accuracy:
 						best_accuracy = accuracy
 						best_at_step = current_step
 						path = saver.save(sess, checkpoint_prefix, global_step=current_step)
-						logging.critical('Save model {} at step {}'.format(path, best_at_step))
+						logging.critical('Saved model {} at step {}'.format(path, best_at_step))
 						logging.critical('Best accuracy {} at step {}'.format(best_accuracy, best_at_step))
 
 			logging.critical('Training is complete, testing the best model on x_test and y_test')
@@ -144,7 +145,7 @@ def train_cnn_lstm(input_file, training_config):
 			# Evaluate x_test and y_test
 			saver.restore(sess, checkpoint_prefix + '-' + str(best_at_step))
 
-			test_batches = data_helper.batch_iter(list(zip(x_test, y_test)), params['batch_size'], 1, predict=True)
+			test_batches = data_helper.batch_iter(list(zip(x_test, y_test)), params['batch_size'], 1, shuffle=False)
 			total_test_correct, predicted_labels = 0, []
 
 			for test_batch in test_batches:
@@ -203,7 +204,7 @@ def train_cnn_lstm(input_file, training_config):
 	with open(trained_dir + 'trained_parameters.json', 'w') as outfile:
 		json.dump(params, outfile, indent=4, sort_keys=True, ensure_ascii=False)
 
+	logging.critical('The training is complete, all files have been saved at {}'.format(trained_dir))
+
 if __name__ == '__main__':
-	input_file = './data/bank_debit/input_40000.csv'
-	training_config = './training_config.json'
-	train_cnn_lstm(input_file, training_config)
+	train_cnn_lstm()

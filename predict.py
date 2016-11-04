@@ -112,7 +112,7 @@ def predict_unseen_data():
 			saver.restore(sess, checkpoint_file)
 			logging.critical('{} has been loaded'.format(checkpoint_file))
 
-			batches = data_helper.batch_iter(list(x_test), params['batch_size'], 1, predict=True)
+			batches = data_helper.batch_iter(list(x_test), params['batch_size'], 1, shuffle=False)
 
 			predictions, predict_labels = [], []
 			for x_batch in batches:
