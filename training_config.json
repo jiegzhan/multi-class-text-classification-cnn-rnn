@@ -1,13 +1,13 @@
 {
-    "batch_size": 77,
+    "batch_size": 64,
     "dropout_keep_prob": 0.5,
     "embedding_dim": 300,
     "evaluate_every": 100,
-    "filter_sizes": "3,4,5",
+    "filter_sizes": "3,4,5,6,7",
     "hidden_unit": 300,
-    "l2_reg_lambda": 1.0,
+    "l2_reg_lambda": 0.0,
     "max_pool_size": 4,
     "non_static": false,
-    "num_epochs": 3,
+    "num_epochs": 1,
     "num_filters": 128
 }
