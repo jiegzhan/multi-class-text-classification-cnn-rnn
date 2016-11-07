@@ -9,12 +9,12 @@ import data_helper
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from text_cnn_lstm import TextCNNLSTM
+from text_cnn_rnn import TextCNNRNN
 from sklearn.model_selection import train_test_split
 
 logging.getLogger().setLevel(logging.INFO)
 
-def train_cnn_lstm():
+def train_cnn_rnn():
 	start_time = time.time()
 	input_file = sys.argv[1]
 	x_, y_, vocabulary, vocabulary_inv, df, labels = data_helper.load_data(input_file)
@@ -57,7 +57,7 @@ def train_cnn_lstm():
 		session_conf = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
 		sess = tf.Session(config=session_conf)
 		with sess.as_default():
-			cnn_lstm = TextCNNLSTM(
+			cnn_rnn = TextCNNRNN(
 				embedding_mat=embedding_mat,
 				sequence_length=x_train.shape[1],
 				num_classes = y_train.shape[1],
@@ -71,7 +71,7 @@ def train_cnn_lstm():
 
 			global_step = tf.Variable(0, name='global_step', trainable=False)
 			optimizer = tf.train.RMSPropOptimizer(1e-3, decay=0.9)
-			grads_and_vars = optimizer.compute_gradients(cnn_lstm.loss)
+			grads_and_vars = optimizer.compute_gradients(cnn_rnn.loss)
 			train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
 
 			# Checkpoint files will be saved in this directory during training
@@ -86,26 +86,26 @@ def train_cnn_lstm():
 
 			def train_step(x_batch, y_batch):
 				feed_dict = {
-					cnn_lstm.input_x: x_batch,
-					cnn_lstm.input_y: y_batch,
-					cnn_lstm.dropout_keep_prob: params['dropout_keep_prob'],
-					cnn_lstm.batch_size: len(x_batch),
-					cnn_lstm.pad: np.zeros([len(x_batch), 1, params['embedding_dim'], 1]),
-					cnn_lstm.real_len: real_len(x_batch),
+					cnn_rnn.input_x: x_batch,
+					cnn_rnn.input_y: y_batch,
+					cnn_rnn.dropout_keep_prob: params['dropout_keep_prob'],
+					cnn_rnn.batch_size: len(x_batch),
+					cnn_rnn.pad: np.zeros([len(x_batch), 1, params['embedding_dim'], 1]),
+					cnn_rnn.real_len: real_len(x_batch),
 				}
-				_, step, loss, accuracy = sess.run([train_op, global_step, cnn_lstm.loss, cnn_lstm.accuracy], feed_dict)
+				_, step, loss, accuracy = sess.run([train_op, global_step, cnn_rnn.loss, cnn_rnn.accuracy], feed_dict)
 
 			def dev_step(x_batch, y_batch):
 				feed_dict = {
-					cnn_lstm.input_x: x_batch,
-					cnn_lstm.input_y: y_batch,
-					cnn_lstm.dropout_keep_prob: 1.0,
-					cnn_lstm.batch_size: len(x_batch),
-					cnn_lstm.pad: np.zeros([len(x_batch), 1, params['embedding_dim'], 1]),
-					cnn_lstm.real_len: real_len(x_batch),
+					cnn_rnn.input_x: x_batch,
+					cnn_rnn.input_y: y_batch,
+					cnn_rnn.dropout_keep_prob: 1.0,
+					cnn_rnn.batch_size: len(x_batch),
+					cnn_rnn.pad: np.zeros([len(x_batch), 1, params['embedding_dim'], 1]),
+					cnn_rnn.real_len: real_len(x_batch),
 				}
 				step, loss, accuracy, num_correct, predictions = sess.run(
-					[global_step, cnn_lstm.loss, cnn_lstm.accuracy, cnn_lstm.num_correct, cnn_lstm.predictions], feed_dict)
+					[global_step, cnn_rnn.loss, cnn_rnn.accuracy, cnn_rnn.num_correct, cnn_rnn.predictions], feed_dict)
 				return accuracy, loss, num_correct, predictions
 
 			saver = tf.train.Saver(tf.all_variables())
@@ -160,10 +160,10 @@ def train_cnn_lstm():
 			columns = sorted(df_test.columns, reverse=True)
 			df_test.to_csv(trained_dir + 'predictions_all.csv', index=False, columns=columns, sep='|')
 
-			df_test_correct = df_test[df_test['PREDICTED'] == df_test['PROPOSED_CATEGORY']]
+			df_test_correct = df_test[df_test['PREDICTED'] == df_test['Category']]
 			df_test_correct.to_csv(trained_dir + 'predictions_correct.csv', index=False, columns=columns, sep='|')
 
-			df_test_non_correct = df_test[df_test['PREDICTED'] != df_test['PROPOSED_CATEGORY']]
+			df_test_non_correct = df_test[df_test['PREDICTED'] != df_test['Category']]
 			df_test_non_correct.to_csv(trained_dir + 'predictions_non_correct.csv', index=False, columns=columns, sep='|')
 
 			# Generate a classification report after predicting on the test set
@@ -209,4 +209,4 @@ def train_cnn_lstm():
 	logging.critical('The training is complete, all files have been saved at {}'.format(trained_dir))
 
 if __name__ == '__main__':
-	train_cnn_lstm()
+	train_cnn_rnn()

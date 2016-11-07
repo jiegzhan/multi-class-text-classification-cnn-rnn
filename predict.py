@@ -8,7 +8,7 @@ import data_helper
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from text_cnn_lstm import TextCNNLSTM
+from text_cnn_rnn import TextCNNRNN
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -24,7 +24,7 @@ def load_trained_params(trained_dir):
 
 def load_test_data(test_file, labels):
 	df = pd.read_csv(test_file, sep='|')
-	select = ['DESCRIPTION_UNMASKED']
+	select = ['Descript']
 
 	df = df.dropna(axis=0, how='any', subset=select)
 	test_examples = df[select[0]].apply(lambda x: data_helper.clean_str(x).split(' ')).tolist()
@@ -35,8 +35,8 @@ def load_test_data(test_file, labels):
 	label_dict = dict(zip(labels, one_hot))
 
 	y_ = None
-	if 'PROPOSED_CATEGORY' in df.columns:
-		select.append('PROPOSED_CATEGORY')
+	if 'Category' in df.columns:
+		select.append('Category')
 		y_ = df[select[1]].apply(lambda x: label_dict[x]).tolist()
 
 	not_select = list(set(df.columns) - set(select))
@@ -80,7 +80,7 @@ def predict_unseen_data():
 		session_conf = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
 		sess = tf.Session(config=session_conf)
 		with sess.as_default():
-			cnn_lstm = TextCNNLSTM(
+			cnn_rnn = TextCNNRNN(
 				embedding_mat = embedding_mat,
 				non_static = params['non_static'],
 				hidden_unit = params['hidden_unit'],
@@ -97,13 +97,13 @@ def predict_unseen_data():
 
 			def predict_step(x_batch):
 				feed_dict = {
-					cnn_lstm.input_x: x_batch,
-					cnn_lstm.dropout_keep_prob: 1.0,
-					cnn_lstm.batch_size: len(x_batch),
-					cnn_lstm.pad: np.zeros([len(x_batch), 1, params['embedding_dim'], 1]),
-					cnn_lstm.real_len: real_len(x_batch),
+					cnn_rnn.input_x: x_batch,
+					cnn_rnn.dropout_keep_prob: 1.0,
+					cnn_rnn.batch_size: len(x_batch),
+					cnn_rnn.pad: np.zeros([len(x_batch), 1, params['embedding_dim'], 1]),
+					cnn_rnn.real_len: real_len(x_batch),
 				}
-				predictions = sess.run([cnn_lstm.predictions], feed_dict)
+				predictions = sess.run([cnn_rnn.predictions], feed_dict)
 				return predictions
 
 			checkpoint_file = trained_dir + 'best_model.ckpt'
@@ -128,10 +128,10 @@ def predict_unseen_data():
 			if y_test is not None:
 				y_test = np.array(np.argmax(y_test, axis=1))
 
-				df_correct = df[df['PREDICTED'] == df['PROPOSED_CATEGORY']]
+				df_correct = df[df['PREDICTED'] == df['Category']]
 				df_correct.to_csv(predicted_dir + 'predictions_correct.csv', index=False, columns=columns, sep='|')
 
-				df_non_correct = df_non_correct = df[df['PREDICTED'] != df['PROPOSED_CATEGORY']]
+				df_non_correct = df_non_correct = df[df['PREDICTED'] != df['Category']]
 				df_non_correct.to_csv(predicted_dir + 'predictions_non_correct.csv', index=False, columns=columns, sep='|')
 
 				# Generate a classification report

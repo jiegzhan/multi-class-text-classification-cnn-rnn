@@ -87,8 +87,8 @@ def batch_iter(data, batch_size, num_epochs, shuffle=True):
 			yield shuffled_data[start_index:end_index]
 
 def load_data(filename):
-	df = pd.read_csv(filename, sep='|')
-	selected = ['PROPOSED_CATEGORY', 'DESCRIPTION_UNMASKED']
+	df = pd.read_csv(filename, compression='zip')
+	selected = ['Category', 'Descript']
 	non_selected = list(set(df.columns) - set(selected))
 
 	df = df.drop(non_selected, axis=1)
@@ -96,8 +96,8 @@ def load_data(filename):
 	df = df.reindex(np.random.permutation(df.index))
 
 	labels = sorted(list(set(df[selected[0]].tolist())))
-	nb_labels = len(labels)
-	one_hot = np.zeros((nb_labels, nb_labels), int)
+	num_labels = len(labels)
+	one_hot = np.zeros((num_labels, num_labels), int)
 	np.fill_diagonal(one_hot, 1)
 	label_dict = dict(zip(labels, one_hot))
 
@@ -112,5 +112,5 @@ def load_data(filename):
 	return x, y, vocabulary, vocabulary_inv, df, labels
 
 if __name__ == "__main__":
-	train_file = './data/bank_debit/input_40000.csv'
+	train_file = './data/train.csv.zip'
 	load_data(train_file)
