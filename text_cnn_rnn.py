@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-class TextCNNLSTM(object):
+class TextCNNRNN(object):
 	def __init__(self, embedding_mat, non_static, hidden_unit, sequence_length, max_pool_size,
 		num_classes, embedding_size, filter_sizes, num_filters, l2_reg_lambda=0.0):
 
