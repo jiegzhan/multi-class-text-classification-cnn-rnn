@@ -32,13 +32,9 @@ def clean_str(s):
 	return s.strip().lower()
 
 def load_embeddings(vocabulary):
-	google_embeddings = gs.models.Word2Vec.load_word2vec_format('./data/GoogleNews-vectors-negative300.bin', binary=True)
 	word_embeddings = {}
 	for word in vocabulary:
-		if word in google_embeddings:
-			word_embeddings[word] = google_embeddings[word]
-		else:
-			word_embeddings[word] = np.random.uniform(-0.25, 0.25, 300)
+		word_embeddings[word] = np.random.uniform(-0.25, 0.25, 300)
 	return word_embeddings
 
 def pad_sentences(sentences, padding_word="<PAD/>", forced_sequence_length=None):
