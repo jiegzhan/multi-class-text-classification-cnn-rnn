@@ -127,32 +127,8 @@ def predict_unseen_data():
 
 			if y_test is not None:
 				y_test = np.array(np.argmax(y_test, axis=1))
-
-				df_correct = df[df['PREDICTED'] == df['Category']]
-				df_correct.to_csv(predicted_dir + 'predictions_correct.csv', index=False, columns=columns, sep='|')
-
-				df_non_correct = df_non_correct = df[df['PREDICTED'] != df['Category']]
-				df_non_correct.to_csv(predicted_dir + 'predictions_non_correct.csv', index=False, columns=columns, sep='|')
-
-				# Generate a classification report
-				reports, accuracy = [], {}
-				accuracy['total_correct'] = int(sum(np.array(predictions) == y_test))
-				accuracy['total_non_correct'] = int(sum(np.array(predictions) != y_test))
-				accuracy['total_test_examples'] = len(y_test)
-				accuracy['accuracy'] = float(accuracy['total_correct']) / len(y_test)
-				reports.append(accuracy)
-
-				total_counts = df['PREDICTED'].value_counts().to_dict()
-				correct_counts = df_correct['PREDICTED'].value_counts().to_dict()
-				non_correct_counts = df_non_correct['PREDICTED'].value_counts().to_dict()
-
-				for key in labels:
-					report = {}
-					report['label'], report['total'] = key, int(total_counts.get(key, 0))
-					report['correct'], report['non_correct'] = int(correct_counts.get(key, 0)), int(non_correct_counts.get(key, 0))
-					reports.append(report)
-				with open(predicted_dir + 'classification_report.json', 'w') as outfile:
-					json.dump(reports, outfile, indent=4)
+				accuracy = sum(np.array(predictions) == y_test) / float(len(y_test))
+				logging.critical('The prediction accuracy is: {}'.format(accuracy))
 
 			logging.critical('Prediction is complete, all files have been saved: {}'.format(predicted_dir))
 
