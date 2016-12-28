@@ -3,7 +3,7 @@
 ### Highlights:
   - This is a **multi-class text classification (sentence classification)** problem.
   - The goal of this project is to **classify Kaggle San Francisco Crime Description into 39 classes**.
-  - This model was built with **CNN, RNN (GRU and LSTM) and Word Embeddings** on **Tensorflow**.
+  - This model was built with **CNN, RNN (LSTM and GRU) and Word Embeddings** on **Tensorflow**.
 
 ### Data: [Kaggle San Francisco Crime](https://www.kaggle.com/c/sf-crime/data)
   - Input: **Descript**
