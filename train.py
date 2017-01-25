@@ -103,7 +103,7 @@ def train_cnn_rnn():
 
 			# Training starts here
 			train_batches = data_helper.batch_iter(list(zip(x_train, y_train)), params['batch_size'], params['num_epochs'])
-			best_accuracy, best_at_stp = 0, 0
+			best_accuracy, best_at_step = 0, 0
 
 			# Train the model with x_train and y_train
 			for train_batch in train_batches:
