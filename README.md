@@ -19,7 +19,7 @@
     ATTEMPTED ROBBERY ON THE STREET WITH A GUN|ROBBERY
     
 ### Train:
-  - Command: python3 train.py train_data.file train_parameters.file
+  - Command: python3 train.py train_data.file train_parameters.json
   - Example: ```python3 train.py ./data/train.csv.zip ./training_config.json```
 
 ### Predict:
