@@ -133,4 +133,5 @@ def predict_unseen_data():
 			logging.critical('Prediction is complete, all files have been saved: {}'.format(predicted_dir))
 
 if __name__ == '__main__':
+	# python3 predict.py ./trained_results_1478563595/ ./data/small_samples.csv
 	predict_unseen_data()
