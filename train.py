@@ -158,4 +158,5 @@ def train_cnn_rnn():
 		json.dump(params, outfile, indent=4, sort_keys=True, ensure_ascii=False)
 
 if __name__ == '__main__':
+	# python3 train.py ./data/train.csv.zip ./training_config.json
 	train_cnn_rnn()
