@@ -130,6 +130,9 @@ def train_cnn_rnn():
 						logging.critical('Best accuracy {} at step {}'.format(best_accuracy, best_at_step))
 			logging.critical('Training is complete, testing the best model on x_test and y_test')
 
+			# Save the model files to trained_dir. predict.py needs trained model files. 
+			saver.save(sess, trained_dir + "best_model.ckpt")
+
 			# Evaluate x_test and y_test
 			saver.restore(sess, checkpoint_prefix + '-' + str(best_at_step))
 			test_batches = data_helper.batch_iter(list(zip(x_test, y_test)), params['batch_size'], 1, shuffle=False)
@@ -147,11 +150,6 @@ def train_cnn_rnn():
 		pickle.dump(embedding_mat, outfile, pickle.HIGHEST_PROTOCOL)
 	with open(trained_dir + 'labels.json', 'w') as outfile:
 		json.dump(labels, outfile, indent=4, ensure_ascii=False)
-
-	os.rename(path, trained_dir + 'best_model.ckpt')
-	os.rename(path + '.meta', trained_dir + 'best_model.meta')
-	shutil.rmtree(checkpoint_dir)
-	logging.critical('{} has been removed'.format(checkpoint_dir))
 
 	params['sequence_length'] = x_train.shape[1]
 	with open(trained_dir + 'trained_parameters.json', 'w') as outfile:
