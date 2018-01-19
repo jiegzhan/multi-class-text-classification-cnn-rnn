@@ -1,6 +1,0 @@
-model_checkpoint_path: "best_model.ckpt"
-all_model_checkpoint_paths: "../checkpoints_1510012745/model-600"
-all_model_checkpoint_paths: "../checkpoints_1510012745/model-800"
-all_model_checkpoint_paths: "../checkpoints_1510012745/model-1000"
-all_model_checkpoint_paths: "../checkpoints_1510012745/model-1200"
-all_model_checkpoint_paths: "best_model.ckpt"

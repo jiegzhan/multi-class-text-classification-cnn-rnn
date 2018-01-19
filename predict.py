@@ -121,7 +121,8 @@ def predict_unseen_data():
 					predictions.append(batch_prediction)
 					predict_labels.append(labels[batch_prediction])
 
-			df['PREDICTED'] = predict_labels
+			# Save the predictions back to file
+			df['NEW_PREDICTED'] = predict_labels
 			columns = sorted(df.columns, reverse=True)
 			df.to_csv(predicted_dir + 'predictions_all.csv', index=False, columns=columns, sep='|')
 
