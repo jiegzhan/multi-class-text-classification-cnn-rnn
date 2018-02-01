@@ -98,8 +98,8 @@ def train_cnn_rnn():
 					[global_step, cnn_rnn.loss, cnn_rnn.accuracy, cnn_rnn.num_correct, cnn_rnn.predictions], feed_dict)
 				return accuracy, loss, num_correct, predictions
 
-			saver = tf.train.Saver(tf.all_variables())
-			sess.run(tf.initialize_all_variables())
+			saver = tf.train.Saver()
+			sess.run(tf.global_variables_initializer())
 
 			# Training starts here
 			train_batches = data_helper.batch_iter(list(zip(x_train, y_train)), params['batch_size'], params['num_epochs'])
