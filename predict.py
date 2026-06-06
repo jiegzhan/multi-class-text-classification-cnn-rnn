@@ -1,138 +1,105 @@
-import os
-import sys
+import argparse
 import json
-import shutil
-import pickle
 import logging
+import os
+import shutil
+
 import data_helper
 import numpy as np
-import pandas as pd
 import tensorflow as tf
-from text_cnn_rnn import TextCNNRNN
+from text_cnn_rnn import TextCNNRNNModel
 
 logging.getLogger().setLevel(logging.INFO)
 
+
+def parse_args():
+	parser = argparse.ArgumentParser(description="Predict crime categories for new descriptions.")
+	parser.add_argument("trained_dir", help="Directory containing saved model artifacts")
+	parser.add_argument("test_file", help="Pipe-delimited CSV with a Descript column")
+	return parser.parse_args()
+
+
+def normalize_trained_dir(trained_dir):
+	if not trained_dir.endswith("/"):
+		trained_dir += "/"
+	return trained_dir
+
+
 def load_trained_params(trained_dir):
-	params = json.loads(open(trained_dir + 'trained_parameters.json').read())
-	words_index = json.loads(open(trained_dir + 'words_index.json').read())
-	labels = json.loads(open(trained_dir + 'labels.json').read())
+	with open(trained_dir + "trained_parameters.json", encoding="utf-8") as config_handle:
+		params = json.load(config_handle)
+	with open(trained_dir + "words_index.json", encoding="utf-8") as vocab_handle:
+		vocabulary = json.load(vocab_handle)
+	with open(trained_dir + "labels.json", encoding="utf-8") as labels_handle:
+		labels = json.load(labels_handle)
+	return params, vocabulary, labels
 
-	with open(trained_dir + 'embeddings.pickle', 'rb') as input_file:
-		fetched_embedding = pickle.load(input_file)
-	embedding_mat = np.array(fetched_embedding, dtype = np.float32)
-	return params, words_index, labels, embedding_mat
 
-def load_test_data(test_file, labels):
-	df = pd.read_csv(test_file, sep='|')
-	select = ['Descript']
+def load_model(trained_dir):
+	checkpoint_path = os.path.join(trained_dir, "best_model.keras")
+	if os.path.isfile(checkpoint_path):
+		return tf.keras.models.load_model(
+			checkpoint_path,
+			custom_objects={"TextCNNRNNModel": TextCNNRNNModel},
+		)
 
-	df = df.dropna(axis=0, how='any', subset=select)
-	test_examples = df[select[0]].apply(lambda x: data_helper.clean_str(x).split(' ')).tolist()
+	saved_model_dir = os.path.join(trained_dir, "saved_model")
+	if os.path.isdir(saved_model_dir):
+		return tf.keras.models.load_model(
+			saved_model_dir,
+			custom_objects={"TextCNNRNNModel": TextCNNRNNModel},
+		)
 
-	num_labels = len(labels)
-	one_hot = np.zeros((num_labels, num_labels), int)
-	np.fill_diagonal(one_hot, 1)
-	label_dict = dict(zip(labels, one_hot))
+	raise FileNotFoundError(
+		f"No saved model found in {trained_dir}. Expected best_model.keras or saved_model/"
+	)
 
-	y_ = None
-	if 'Category' in df.columns:
-		select.append('Category')
-		y_ = df[select[1]].apply(lambda x: label_dict[x]).tolist()
-
-	not_select = list(set(df.columns) - set(select))
-	df = df.drop(not_select, axis=1)
-	return test_examples, y_, df
-
-def map_word_to_index(examples, words_index):
-	x_ = []
-	for example in examples:
-		temp = []
-		for word in example:
-			if word in words_index:
-				temp.append(words_index[word])
-			else:
-				temp.append(0)
-		x_.append(temp)
-	return x_
 
 def predict_unseen_data():
-	trained_dir = sys.argv[1]
-	if not trained_dir.endswith('/'):
-		trained_dir += '/'
-	test_file = sys.argv[2]
+	args = parse_args()
+	trained_dir = normalize_trained_dir(args.trained_dir)
 
-	params, words_index, labels, embedding_mat = load_trained_params(trained_dir)
-	x_, y_, df = load_test_data(test_file, labels)
-	x_ = data_helper.pad_sentences(x_, forced_sequence_length=params['sequence_length'])
-	x_ = map_word_to_index(x_, words_index)
+	if not os.path.isdir(trained_dir):
+		raise FileNotFoundError(f"Trained directory not found: {trained_dir}")
+	if not os.path.isfile(args.test_file):
+		raise FileNotFoundError(f"Test file not found: {args.test_file}")
 
-	x_test, y_test = np.asarray(x_), None
-	if y_ is not None:
-		y_test = np.asarray(y_)
+	params, vocabulary, labels = load_trained_params(trained_dir)
+	model = load_model(trained_dir)
 
-	timestamp = trained_dir.split('/')[-2].split('_')[-1]
-	predicted_dir = './predicted_results_' + timestamp + '/'
+	test_examples, y_true, df = data_helper.load_test_data(args.test_file, labels)
+	x_test = data_helper.prepare_test_features(
+		test_examples,
+		vocabulary,
+		params["sequence_length"],
+	)
+
+	timestamp = trained_dir.rstrip("/").split("_")[-1]
+	predicted_dir = f"./predicted_results_{timestamp}/"
 	if os.path.exists(predicted_dir):
 		shutil.rmtree(predicted_dir)
 	os.makedirs(predicted_dir)
 
-	with tf.Graph().as_default():
-		session_conf = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
-		sess = tf.Session(config=session_conf)
-		with sess.as_default():
-			cnn_rnn = TextCNNRNN(
-				embedding_mat = embedding_mat,
-				non_static = params['non_static'],
-				hidden_unit = params['hidden_unit'],
-				sequence_length = len(x_test[0]),
-				max_pool_size = params['max_pool_size'],
-				filter_sizes = map(int, params['filter_sizes'].split(",")),
-				num_filters = params['num_filters'],
-				num_classes = len(labels),
-				embedding_size = params['embedding_dim'],
-				l2_reg_lambda = params['l2_reg_lambda'])
+	probabilities = model.predict(x_test, batch_size=params["batch_size"], verbose=0)
+	predictions = np.argmax(probabilities, axis=1)
+	predict_labels = [labels[index] for index in predictions]
 
-			def real_len(batches):
-				return [np.ceil(np.argmin(batch + [0]) * 1.0 / params['max_pool_size']) for batch in batches]
+	df["NEW_PREDICTED"] = predict_labels
+	columns = sorted(df.columns, reverse=True)
+	df.to_csv(
+		os.path.join(predicted_dir, "predictions_all.csv"),
+		index=False,
+		columns=columns,
+		sep="|",
+	)
 
-			def predict_step(x_batch):
-				feed_dict = {
-					cnn_rnn.input_x: x_batch,
-					cnn_rnn.dropout_keep_prob: 1.0,
-					cnn_rnn.batch_size: len(x_batch),
-					cnn_rnn.pad: np.zeros([len(x_batch), 1, params['embedding_dim'], 1]),
-					cnn_rnn.real_len: real_len(x_batch),
-				}
-				predictions = sess.run([cnn_rnn.predictions], feed_dict)
-				return predictions
+	if y_true is not None:
+		y_true = np.asarray(y_true)
+		accuracy = float(np.mean(predictions == y_true))
+		logging.info("Prediction accuracy: %.4f", accuracy)
 
-			checkpoint_file = trained_dir + 'best_model.ckpt'
-			saver = tf.train.Saver(tf.all_variables())
-			saver = tf.train.import_meta_graph("{}.meta".format(checkpoint_file))
-			saver.restore(sess, checkpoint_file)
-			logging.critical('{} has been loaded'.format(checkpoint_file))
+	logging.info("Prediction complete. Output saved to %s", predicted_dir)
 
-			batches = data_helper.batch_iter(list(x_test), params['batch_size'], 1, shuffle=False)
 
-			predictions, predict_labels = [], []
-			for x_batch in batches:
-				batch_predictions = predict_step(x_batch)[0]
-				for batch_prediction in batch_predictions:
-					predictions.append(batch_prediction)
-					predict_labels.append(labels[batch_prediction])
-
-			# Save the predictions back to file
-			df['NEW_PREDICTED'] = predict_labels
-			columns = sorted(df.columns, reverse=True)
-			df.to_csv(predicted_dir + 'predictions_all.csv', index=False, columns=columns, sep='|')
-
-			if y_test is not None:
-				y_test = np.array(np.argmax(y_test, axis=1))
-				accuracy = sum(np.array(predictions) == y_test) / float(len(y_test))
-				logging.critical('The prediction accuracy is: {}'.format(accuracy))
-
-			logging.critical('Prediction is complete, all files have been saved: {}'.format(predicted_dir))
-
-if __name__ == '__main__':
-	# python3 predict.py ./trained_results_1478563595/ ./data/small_samples.csv
+if __name__ == "__main__":
 	predict_unseen_data()
