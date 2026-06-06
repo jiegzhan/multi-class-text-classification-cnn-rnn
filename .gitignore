@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.env
+.venv/
+env/
+
+trained_results_*/
+predicted_results_*/
+
+.DS_Store

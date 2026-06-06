@@ -1,30 +1,55 @@
 ### Project: Classify Kaggle San Francisco Crime Description
 
-### Highlights:
-  - This is a **multi-class text classification (sentence classification)** problem.
-  - The goal of this project is to **classify Kaggle San Francisco Crime Description into 39 classes**.
-  - This model was built with **CNN, RNN (LSTM and GRU) and Word Embeddings** on **Tensorflow**.
+### Highlights
+- Multi-class text classification (sentence classification) problem.
+- Classify Kaggle San Francisco Crime **Descript** into 39 **Category** labels.
+- Hybrid **TextCNN + GRU** model implemented with **TensorFlow 2.x Keras**.
 
 ### Data: [Kaggle San Francisco Crime](https://www.kaggle.com/c/sf-crime/data)
-  - Input: **Descript**
-  - Output: **Category**
-  - Examples:
+- Input: **Descript**
+- Output: **Category**
+- Training data format: zip-compressed CSV with at least `Category` and `Descript` columns.
+- Prediction data format: pipe-delimited CSV (`|`) with a `Descript` column. Optional `Category` column enables accuracy reporting.
 
-    Descript   | Category
-    -----------|-----------
-    GRAND THEFT FROM LOCKED AUTO|LARCENY/THEFT
-    POSSESSION OF NARCOTICS PARAPHERNALIA|DRUG/NARCOTIC
-    AIDED CASE, MENTAL DISTURBED|NON-CRIMINAL
-    AGGRAVATED ASSAULT WITH BODILY FORCE|ASSAULT
-    ATTEMPTED ROBBERY ON THE STREET WITH A GUN|ROBBERY
-    
-### Train:
-  - Command: python3 train.py train_data.file train_parameters.json
-  - Example: ```python3 train.py ./data/train.csv.zip ./training_config.json```
+Examples:
 
-### Predict:
-  - Command: python3 predict.py ./trained_results_dir/ new_data.csv
-  - Example: ```python3 predict.py ./trained_results_1478563595/ ./data/small_samples.csv```
-  
-### Reference:
- - [Implement a cnn for text classification in tensorflow](http://www.wildml.com/2015/12/implementing-a-cnn-for-text-classification-in-tensorflow/)
+| Descript | Category |
+| --- | --- |
+| GRAND THEFT FROM LOCKED AUTO | LARCENY/THEFT |
+| POSSESSION OF NARCOTICS PARAPHERNALIA | DRUG/NARCOTIC |
+| AIDED CASE, MENTAL DISTURBED | NON-CRIMINAL |
+| AGGRAVATED ASSAULT WITH BODILY FORCE | ASSAULT |
+| ATTEMPTED ROBBERY ON THE STREET WITH A GUN | ROBBERY |
+
+### Setup
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Training data is included at `./data/train.csv.zip`. Prediction sample data is at `./data/small_samples.csv`.
+
+### Train
+```bash
+python3 train.py ./data/train.csv.zip ./training_config.json
+```
+
+Artifacts are written to `./trained_results_<timestamp>/`:
+- `saved_model/` — exported SavedModel for inference
+- `best_model.keras` — best validation checkpoint (primary load path for predict)
+- `words_index.json` — vocabulary mapping
+- `labels.json` — class labels
+- `trained_parameters.json` — hyperparameters and sequence length
+
+**Note:** Legacy TensorFlow 1.x checkpoint artifacts (`.ckpt`) from older versions of this repo are not compatible. Retrain to produce TF 2.x artifacts.
+
+### Predict
+```bash
+python3 predict.py ./trained_results_<timestamp>/ ./data/small_samples.csv
+```
+
+Predictions are saved to `./predicted_results_<timestamp>/predictions_all.csv`.
+
+### Reference
+- [Implement a CNN for text classification in TensorFlow](http://www.wildml.com/2015/12/implementing-a-cnn-for-text-classification-in-tensorflow/)
