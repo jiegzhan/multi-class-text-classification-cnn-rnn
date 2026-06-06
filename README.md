@@ -8,8 +8,6 @@
 ### Data: [Kaggle San Francisco Crime](https://www.kaggle.com/c/sf-crime/data)
 - Input: **Descript**
 - Output: **Category**
-- Training data format: zip-compressed CSV with at least `Category` and `Descript` columns.
-- Prediction data format: pipe-delimited CSV (`|`) with a `Descript` column. Optional `Category` column enables accuracy reporting.
 
 Examples:
 
@@ -17,9 +15,6 @@ Examples:
 | --- | --- |
 | GRAND THEFT FROM LOCKED AUTO | LARCENY/THEFT |
 | POSSESSION OF NARCOTICS PARAPHERNALIA | DRUG/NARCOTIC |
-| AIDED CASE, MENTAL DISTURBED | NON-CRIMINAL |
-| AGGRAVATED ASSAULT WITH BODILY FORCE | ASSAULT |
-| ATTEMPTED ROBBERY ON THE STREET WITH A GUN | ROBBERY |
 
 ### Setup
 ```bash
@@ -41,8 +36,6 @@ Artifacts are written to `./trained_results_<timestamp>/`:
 - `words_index.json` — vocabulary mapping
 - `labels.json` — class labels
 - `trained_parameters.json` — hyperparameters and sequence length
-
-**Note:** Legacy TensorFlow 1.x checkpoint artifacts (`.ckpt`) from older versions of this repo are not compatible. Retrain to produce TF 2.x artifacts.
 
 ### Predict
 ```bash
